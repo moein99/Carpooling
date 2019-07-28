@@ -5,6 +5,28 @@
     <title>Groups</title>
 </head>
 <body>
+<form method="POST">
+    {{ form.errors }}
+    {% csrf_token %}
+    {{ form.as_table }}
+    <input type="submit" value="Create your Comment">
+</form>
+    <div>
+        owned groups
+    </div>
+    {%for group in owned_groups %}
+    <li>
+        <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : private:{{ group.is_private }}</a>
+    </li>
+    {% endfor %}
+    <div>
+        joined groups
+    </div>
+    {%for group in joined_groups %}
+    <li>
+        <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : private:{{ group.is_private }}</a>
+    </li>
+    {% endfor %}
 
 </body>
 </html>

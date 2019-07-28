@@ -24,10 +24,15 @@ def create_group(request):
             instance.save()
             if membership_form.is_valid():
                 membership_form.save()
-    owned_groups = Group.objects.filter(membership__role='ow', members=member)
-    joined_groups = Group.objects.filter(membership__role='me', members=member)
+    owned_groups = Group.objects.filter(membership__role='ow', members=member).defer('id', 'description', 'source_lat',
+                                                                                     'source_lon')
+    joined_groups = Group.objects.filter(membership__role='me', members=member).defer('id', 'description', 'source_lat',
+                                                                                      'source_lon')
     return render(request, "groups.html", {
         "form": form,
         'owned_groups': owned_groups,
         'joined_groups': joined_groups,
     })
+
+def add_member(request):
+    pass
