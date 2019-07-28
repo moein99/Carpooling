@@ -1,14 +1,11 @@
+from django.contrib import messages
 from django.contrib.auth import authenticate, login
-from django.http import HttpResponseBadRequest
-from django.shortcuts import render, redirect, render_to_response
+from django.shortcuts import render, redirect
+from django.urls import reverse
 from .forms import *
 
 
-# Create your views here.
-from django.urls import reverse
-
-
-def login_init(request):
+def login_handler(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -18,22 +15,32 @@ def login_init(request):
                 login(request, user)
                 return redirect(reverse('root:home'))
             else:
-                return HttpResponseBadRequest("Your account was inactive.")
+                messages.add_message(request, messages.INFO, 'invalid username or password')
+                return render(request, 'login.html', {'form': LoginForm()}, status=403)
         else:
-            return HttpResponseBadRequest("Invalid login details given")
+            messages.add_message(request, messages.INFO, 'invalid username or password')
+            return render(request, 'login.html', {'form': LoginForm()}, status=403)
     elif request.method == 'GET':
-        return render(request, 'account/login.html', {"form": LoginForm()})
+        return render(request, 'login.html', {"form": LoginForm()})
 
 
-def signup(request):
+def signup_handler(request):
     if request.method == 'GET':
-        return render(request, 'account/signup.html', {'form': SignupForm()})
-    else:
+        return render(request, 'signup.html', {'form': SignupForm()})
+    elif request.method == 'POST':
         form = SignupForm(data=request.POST)
-        if form.is_valid() and form.data['password'] == form.data['confirm_password']:
+        if is_duplicate_user(form):
+            messages.add_message(request, messages.INFO, 'this username already exists')
+            return render(request, 'signup.html', {'form': SignupForm()})
+        elif form.is_valid():
             member = form.save(commit=False)
             member.set_password(form.data['password'])
             member.save()
-            return render_to_response('root/home.html')
+            return redirect(reverse('account:login'))
         else:
-            return render(request, 'account/signup.html', {'form': form})
+            return render(request, 'signup.html', {'form': form}, status=400)
+
+
+def is_duplicate_user(form):
+    username = form.data['username']
+    return Member.objects.all().filter(username=username).count() != 0

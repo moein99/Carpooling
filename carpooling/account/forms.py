@@ -10,9 +10,6 @@ class SignupForm(forms.ModelForm):
     class Meta:
         model = Member
         fields = ('username', 'email', 'password', 'confirm_password')
-        widgets = {
-            'password': forms.PasswordInput(),
-        }
         help_texts = {
             'username': None,
         }
@@ -23,6 +20,11 @@ class SignupForm(forms.ModelForm):
         if password != confirm_password:
             raise forms.ValidationError(
                 "password and confirm_password does not match"
+            )
+        username = self.cleaned_data.get('username')
+        if not (5 <= len(username) <= 30):
+            raise forms.ValidationError(
+                "username length should be in range 5 to 30 characters"
             )
 
 
