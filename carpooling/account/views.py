@@ -6,6 +6,8 @@ from django.shortcuts import render, redirect
 import redis
 
 from django.urls import reverse
+from django.core.mail import send_mail
+
 
 from account.forms import ForgotPasswordForm, ResetPasswordForm
 from account.models import Member
@@ -40,11 +42,17 @@ class PasswordHandler:
 
     @staticmethod
     def create_email_text(user, certificate):
-        return ""
+        return certificate
 
     @staticmethod
     def send_email(email_address, email_text):
-        pass
+        send_mail(
+            'Reset Password',
+            email_text,
+            'carpooling.cafebazaar@gmail.com',
+            [email_address],
+            fail_silently=False,
+        )
 
     @staticmethod
     def email_reset_password_link(request):
@@ -53,7 +61,7 @@ class PasswordHandler:
             user = Member.objects.get(Q(username=form.email_or_username) | Q(email=form.email_or_username))
         except Member.DoesNotExist():
             return HttpResponseNotFound()
-        certificate = uuid.uuid4()
+        certificate = uuid.uuid4().hex
         redis.Redis().set(certificate, user.username, 60*15)
         email_text = PasswordHandler.create_email_text(user, certificate)
         PasswordHandler.send_email(user.email, email_text)
