@@ -14,7 +14,7 @@
     <div>
         owned groups
     </div>
-    {%for group in owned_groups %}
+    {%for group in user_owned_groups %}
     <li>
         <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : private:{{ group.is_private }}</a>
     </li>
@@ -22,7 +22,7 @@
     <div>
         joined groups
     </div>
-    {%for group in joined_groups %}
+    {%for group in user_joined_groups %}
     <li>
         <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : private:{{ group.is_private }}</a>
     </li>

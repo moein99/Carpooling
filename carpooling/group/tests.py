@@ -13,13 +13,14 @@ class GroupTestCase(TestCase):
         self.temp_acount.set_password('majid123')
         self.temp_acount.save()
 
-    def test_group_creation(self):
+    def test_unauthorized_group_creation(self):
         response = self.client.get(path='/group/')
         self.assertEqual(response.status_code, 302)
 
         response = self.client.post(path='/group/')
         self.assertEqual(response.status_code, 302)
 
+    def test_authorized_group_creation(self):
         self.client.login(username='testuser', password='majid123')
 
         response = self.client.get(path='/group/')
