@@ -4,6 +4,7 @@ from django.test import Client
 # Create your tests here.
 from django.urls import reverse
 
+from account.forms import SignupForm
 from account.models import Member
 
 
@@ -48,7 +49,48 @@ class SignUpTest(TestCase):
         response = self.client.post(reverse('account:signup'), post_data)
         self.assertEqual(response.status_code, 400)
 
-    def test_differ_pass_and_confpass(self):
+    def test_different_pass(self):
         post_data = {"username": "moein99", "password": "1234", 'email': "somemail@gmail.com", 'confirm_password': '12'}
         response = self.client.post(reverse('account:signup'), post_data)
         self.assertEqual(response.status_code, 400)
+
+
+class LogoutTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        member = Member(username='moein', password='1234')
+        self.user = Member.objects.create_user(username=member.username, password=member.password)
+
+    def test_logout(self):
+        post_data = {'username': self.user.username, 'password': self.user.password}
+        self.client.post(reverse('account:login'), post_data)
+        response = self.client.get(reverse('account:logout'))
+        self.assertEqual(response.status_code, 302)
+
+
+class SignupFormTest(TestCase):
+
+    def test_valid_username(self):
+        self.data = {'username': "moein", 'password': "1234", 'email': "some@gmail.com", 'confirm_password': "1234"}
+        self.form = SignupForm(data=self.data)
+        self.assertEqual(self.form.is_valid(), True)
+
+        self.data = {'username': "012345678901234567890123456789",
+                     'password': "1234", 'email': "some@gmail.com", 'confirm_password': "1234"}
+        self.form = SignupForm(data=self.data)
+        self.assertEqual(self.form.is_valid(), True)
+
+    def test_invalid_username(self):
+        self.data = {'username': "moei", 'password': "1234", 'email': "some@gmail.com", 'confirm_password': "1234"}
+        self.form = SignupForm(data=self.data)
+        self.assertEqual(self.form.is_valid(), False)
+
+        self.data = {'username': "0123456789012345678901234567890",
+                     'password': "1234", 'email': "some@gmail.com", 'confirm_password': "1234"}
+        self.form = SignupForm(data=self.data)
+        self.assertEqual(self.form.is_valid(), False)
+
+    def test_different_password(self):
+        self.data = {'username': "moein", 'password': "1234", 'email': "some@gmail.com", 'confirm_password': "12345"}
+        self.form = SignupForm(data=self.data)
+        self.assertEqual(self.form.is_valid(), False)

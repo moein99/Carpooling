@@ -8,4 +8,4 @@ from django.db import models
 
 
 class Member(AbstractUser):
-    username_validator = [UnicodeUsernameValidator, MaxLengthValidator(30), MinLengthValidator(5)]
+    username_validator = [UnicodeUsernameValidator, MaxLengthValidator(30), MinLengthValidator(5)] # delete validators

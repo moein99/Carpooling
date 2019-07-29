@@ -15,17 +15,13 @@ class SignupForm(forms.ModelForm):
         }
 
     def clean(self):
+        cleaned_data = super(SignupForm, self).clean()
         password = self.cleaned_data.get("password")
-        confirm_password = self.cleaned_data.get("confirm_password")
-        if password != confirm_password:
-            raise forms.ValidationError(
-                "password and confirm_password does not match"
-            )
-        username = self.cleaned_data.get('username')
-        if not (5 <= len(username) <= 30):
-            raise forms.ValidationError(
-                "username length should be in range 5 to 30 characters"
-            )
+        confirm_password = cleaned_data.get("confirm_password")
+        username = cleaned_data.get('username')
+        check_passwords_equality(password, confirm_password)
+        check_username_validity(username)
+        return cleaned_data
 
 
 class LoginForm(forms.ModelForm):
@@ -38,3 +34,17 @@ class LoginForm(forms.ModelForm):
         help_texts = {
             'username': None,
         }
+
+
+def check_passwords_equality(password, confirm_password):
+    if password != confirm_password:
+        raise forms.ValidationError(
+            "password and confirm_password does not match"
+        )
+
+
+def check_username_validity(username):
+    if not (5 <= len(username) <= 30):
+        raise forms.ValidationError(
+            "username length should be in range 5 to 30 characters"
+        )

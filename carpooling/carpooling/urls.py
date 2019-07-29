@@ -27,5 +27,5 @@ urlpatterns = [
     path('account/', include(account_urls, namespace='account')),
     path('group/', include(group_urls, namespace='group')),
     path('trip/', include(trip_urls, namespace='trip')),
-    path('/', include(root_urls, namespace='root'))
+    path('', include(root_urls, namespace='root'))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
