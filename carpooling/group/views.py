@@ -21,7 +21,7 @@ def create_new_group(request, member):
     return form
 
 
-@login_required(redirect_field_name='account:login')
+@login_required(login_url='/account/login/')
 def create_group(request):
     member = get_object_or_404(Member, id=request.user.id)
     if request.method == "GET":

@@ -5,6 +5,13 @@
     <title>Groups</title>
 </head>
 <body>
+
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
 <form method="POST">
     {{ form.errors }}
     {% csrf_token %}
@@ -16,7 +23,8 @@
     </div>
     {%for group in user_owned_groups %}
     <li>
-        <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : private:{{ group.is_private }}</a>
+        <a href="{% url 'group:group' group.id %}">{{ group.code }} : {{ group.title }} :{% if group.is_private %}private
+        {% else %}public {% endif %} </a>
     </li>
     {% endfor %}
     <div>
