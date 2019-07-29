@@ -4,11 +4,16 @@ from group.models import Group, Membership
 
 
 class GroupForm(forms.ModelForm):
+    source_lat = forms.DecimalField(required=False)
+    source_lon = forms.DecimalField(required=False)
+    is_private = forms.BooleanField(required=False)
+
     class Meta:
         model = Group
         fields = ['code', 'title', 'is_private', 'description', 'source_lat', 'source_lon']
 
     def clean_source_lat(self):
+
         lat = self.cleaned_data['source_lat']
         if lat is None:
             self.cleaned_data['source_lon'] = None
@@ -25,4 +30,3 @@ class MembershipForm(forms.ModelForm):
     class Meta:
         model = Membership
         fields = ['member', 'group', 'role']
-

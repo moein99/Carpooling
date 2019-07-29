@@ -7,15 +7,15 @@ from group.models import Group
 
 def create_new_group(request, member):
     form = GroupForm(data=request.POST)
+
     if form.is_valid():
         instance = form.save(commit=False)
-
+        instance.save()
         membership_form = MembershipForm(data={
-            'member': member,
-            'group': instance,
+            'member': member.id,
+            'group': instance.id,
             'role': 'ow'
         })
-        instance.save()
         if membership_form.is_valid():
             membership_form.save()
     return form
