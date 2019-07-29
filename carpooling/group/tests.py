@@ -14,21 +14,21 @@ class GroupViewTestCase(TestCase):
         self.temp_acount.set_password('majid123')
         self.temp_acount.save()
 
-    def test_unauthorized_group_creation_get(self):
+    def test_unauthorized_get_request(self):
         response = self.client.get(path='/group/')
         self.assertEqual(response.status_code, 302)
 
-    def test_unauthorized_group_creation_post(self):
+    def test_unauthorized_post_request(self):
         response = self.client.post(path='/group/')
         self.assertEqual(response.status_code, 302)
 
-    def test_authorized_group_creation_get(self):
+    def test_authorized_get_request(self):
         self.client.login(username='testuser', password='majid123')
 
         response = self.client.get(path='/group/')
         self.assertEqual(response.status_code, 200)
 
-    def test_authorized_group_creation_post_full(self):
+    def test_authorized_post_full_fields(self):
         self.client.login(username='testuser', password='majid123')
         response = self.client.post(path='/group/', data={'code': "testgroup", 'title': "test group title",
                                                           'is_private': True, 'description': "this is a test group",
@@ -37,7 +37,7 @@ class GroupViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(test_group)
 
-    def test_authorized_group_creation_post_with_empty_fields(self):
+    def test_authorized_post_with_empty_fields(self):
         self.client.login(username='testuser', password='majid123')
         response = self.client.post(path='/group/', data={'code': "secondgrouptest", 'title': "test group title",
                                                           'is_private': True, 'description': "this is a test group", })
@@ -45,7 +45,7 @@ class GroupViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(test_group)
 
-    def test_adding_user_to_his_group(self):
+    def test_adding_user_to_group(self):
         self.client.login(username='testuser', password='majid123')
         response = self.client.post(path='/group/', data={'code': "secondgrouptest", 'title': "test group title",
                                                           'is_private': True, 'description': "this is a test group", })
@@ -53,17 +53,18 @@ class GroupViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(test_group)
         test_membership = Membership.objects.get(group__exact=test_group)
+        self.assertIsNotNone(test_membership)
 
 
 class GroupFormTest(TestCase):
 
-    def test_group_form_wrong_form(self):
+    def test_wrong_group_form(self):
         w = mommy.make(Group)
         data = {'code': w.code, 'title': w.title, 'description': w.description}
         form = GroupForm(data=data)
         self.assertFalse(form.is_valid())
 
-    def test_group_form_correct_form(self):
+    def test_correct_group_form(self):
         data = {'code': "secondgrouptest", 'title': "test group title", 'is_private': True,
                 'description': "this is a test group"}
         form = GroupForm(data=data)
@@ -72,13 +73,13 @@ class GroupFormTest(TestCase):
 
 class MembershipFormTest(TestCase):
 
-    def test_membership_form_wrong_form(self):
+    def test_wrong_membership_form(self):
         w = mommy.make(Membership)
         data = {'member': w.member, 'group': w.group, 'role': w.role}
         form = MembershipForm(data=data)
         self.assertFalse(form.is_valid())
 
-    def test_membership_form_correct_form(self):
+    def test_correct_membership_form(self):
 
         user = mommy.make(Member)
         group = mommy.make(Group)
