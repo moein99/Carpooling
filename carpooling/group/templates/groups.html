@@ -12,29 +12,26 @@
     {% include 'not_authenticated_navbar.html' %}
 {% endif %}
 
-<form method="POST">
-    {{ form.errors }}
-    {% csrf_token %}
-    {{ form.as_table }}
-    <input type="submit" value="Create your Group">
-</form>
-    <div>
-        owned groups
-    </div>
-    {%for group in user_owned_groups %}
-    <li>
-        <a href="{% url 'group:group' group.id %}">{{ group.code }} : {{ group.title }} :{% if group.is_private %}private
-        {% else %}public {% endif %} </a>
-    </li>
-    {% endfor %}
-    <div>
-        joined groups
-    </div>
-    {%for group in user_joined_groups %}
-    <li>
-        <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : private:{{ group.is_private }}</a>
-    </li>
-    {% endfor %}
+<div>
+    <a href="{% url 'group:groupcreate' %}">Create Group</a>
+</div>
+<div>
+    My groups
+</div>
+{%for group in user_owned_groups %}
+<li>
+    <a href="{% url 'group:group' group.id %}">{{ group.code }} : {{ group.title }} :{% if group.is_private %}private
+    {% else %}public {% endif %} </a>
+</li>
+{% endfor %}
+<div>
+    joined groups
+</div>
+{%for group in user_joined_groups %}
+<li>
+    <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : private:{{ group.is_private }}</a>
+</li>
+{% endfor %}
 
 </body>
 </html>
