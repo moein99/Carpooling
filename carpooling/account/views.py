@@ -1,13 +1,12 @@
 import uuid
 
+import redis
+from django.core.mail import send_mail
 from django.db.models import Q
 from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect
-import redis
-
+from django.template.loader import render_to_string
 from django.urls import reverse
-from django.core.mail import send_mail
-
 
 from account.forms import ForgotPasswordForm, ResetPasswordForm
 from account.models import Member
@@ -42,7 +41,11 @@ class PasswordHandler:
 
     @staticmethod
     def create_email_text(user, certificate):
-        return certificate
+        email_text = render_to_string('reset_password_email.html', {
+            'link': 'localhost:8000/account/password/?certificate=' + certificate,
+            'user': user,
+        })
+        return email_text
 
     @staticmethod
     def send_email(email_address, email_text):
@@ -62,7 +65,7 @@ class PasswordHandler:
         except Member.DoesNotExist():
             return HttpResponseNotFound()
         certificate = uuid.uuid4().hex
-        redis.Redis().set(certificate, user.username, 60*15)
+        redis.Redis().set(certificate, user.username, 60 * 15)
         email_text = PasswordHandler.create_email_text(user, certificate)
         PasswordHandler.send_email(user.email, email_text)
         # TODO: create html file
