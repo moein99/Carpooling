@@ -18,7 +18,7 @@ class PasswordHandler:
         certificate = request.GET.get('certificate')
         if request.method == 'GET':
             if certificate is None:
-                render(request, 'forgot_password.html', {'form': ForgotPasswordForm()})
+                return render(request, 'forgot_password.html', {'form': ForgotPasswordForm()})
             else:
                 return PasswordHandler.render_reset_password(request)
         elif request.method == 'POST':
@@ -37,7 +37,7 @@ class PasswordHandler:
         username = r.get(certificate)
         if username is None:
             return HttpResponseNotFound()
-        render(request, 'reset_password.html', {'form': ResetPasswordForm(certificate)})
+        return render(request, 'reset_password.html', {'form': ResetPasswordForm(initial={'certificate': certificate})})
 
     @staticmethod
     def create_email_text(user, certificate):
@@ -61,8 +61,10 @@ class PasswordHandler:
     def email_reset_password_link(request):
         form = ForgotPasswordForm(data=request.POST)
         try:
-            user = Member.objects.get(Q(username=form.email_or_username) | Q(email=form.email_or_username))
-        except Member.DoesNotExist():
+            if form.is_valid():
+                email_or_username = form.clean().get('email_or_username')
+            user = Member.objects.get(Q(username=email_or_username) | Q(email=email_or_username))
+        except Member.DoesNotExist:
             return HttpResponseNotFound()
         certificate = uuid.uuid4().hex
         redis.Redis().set(certificate, user.username, 60 * 15)
@@ -74,13 +76,14 @@ class PasswordHandler:
     @staticmethod
     def handle_reset_password(request):
         form = ResetPasswordForm(data=request.POST)
-        certificate = form.certificate
-        username = redis.Redis().get(certificate)
+        if form.is_valid():
+            certificate = form.clean().get('certificate')
+        username = redis.Redis().get(certificate).decode()
         if username is None:
             return HttpResponseForbidden()
         user = Member.objects.get(username=username)
         if form.is_valid():
-            user.set_password(form.password)
+            user.set_password(form.clean().get('password'))
             return redirect(reverse('account:login'))
         else:
             return HttpResponseBadRequest()

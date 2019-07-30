@@ -5,11 +5,11 @@ class ForgotPasswordForm(forms.Form):
     email_or_username = forms.CharField(max_length=100,
                                         widget=forms.TextInput(attrs={'placeholder': 'Username or Email'}))
 
+    def clean(self):
+        return self.cleaned_data
+
 
 class ResetPasswordForm(forms.Form):
-    def __init__(self, certificate):
-        super().__init__()
-        self.fields['certificate'].initial = certificate
     certificate = forms.CharField(max_length=32, widget=forms.HiddenInput())
     password = forms.CharField(max_length=128, widget=forms.PasswordInput())
     confirm_password = forms.CharField(max_length=128, widget=forms.PasswordInput())
@@ -24,3 +24,4 @@ class ResetPasswordForm(forms.Form):
 
         if password != confirm_password:
             raise forms.ValidationError('password and confirm_password does not match')
+        return cleaned_data
