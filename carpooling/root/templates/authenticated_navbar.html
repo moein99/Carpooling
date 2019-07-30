@@ -2,7 +2,7 @@
 <html>
 <head>
 <style>
-ul {
+.navbar_ul{
   list-style-type: none;
   margin: 0;
   padding: 0;
@@ -10,11 +10,11 @@ ul {
   background-color: #333;
 }
 
-li {
+.navbar_li{
   float: right;
 }
 
-li a {
+.navbar_li a {
   display: block;
   color: white;
   text-align: center;
@@ -22,7 +22,7 @@ li a {
   text-decoration: none;
 }
 
-li a:hover:not(.active) {
+.navbar_li a:hover:not(.active) {
   background-color: #111;
 }
 
@@ -34,10 +34,10 @@ li a:hover:not(.active) {
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </head>
 <body>
-<ul>
-    <li style="float: left"><a href="{% url 'root:home' %}">Home</a></li>
-    <li><a id="logout_btn">Logout</a></li>
-    <li><a href="{% url 'account:user_profile' %}">Profile</a></li>
+<ul class="navbar_ul">
+    <li style="float: left" class="navbar_li"><a href="{% url 'root:home' %}">Home</a></li style="float: left" class="navbar">
+    <li class="navbar_li"><a id="logout_btn">Logout</a></li>
+    <li class="navbar_li"><a href="{% url 'account:user_profile' %}">Profile</a></li>
 </ul>
 <script>
     var url = '{% url 'account:logout' %}';
