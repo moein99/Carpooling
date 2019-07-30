@@ -17,21 +17,29 @@ class PasswordHandler:
     def handle(request):
         certificate = request.GET.get('certificate')
         if request.method == 'GET':
-            if certificate is None:
-                return render(request, 'forgot_password.html', {'form': ForgotPasswordForm()})
-            else:
-                return PasswordHandler.render_reset_password(request)
+            return PasswordHandler.do_get(request, certificate)
         elif request.method == 'POST':
-            type = request.POST.get('type')
-            if type is None:
-                return HttpResponseBadRequest()
-            if type == 'POST':
-                return PasswordHandler.email_reset_password_link(request)
-            elif type == 'PUT':
-                return PasswordHandler.handle_reset_password(request)
+            return PasswordHandler.do_post(request)
 
     @staticmethod
-    def render_reset_password(request):
+    def do_get(request, certificate):
+        if certificate is None:
+            return render(request, 'forgot_password.html', {'form': ForgotPasswordForm()})
+        else:
+            return PasswordHandler.render_reset_password(request)
+
+    @staticmethod
+    def do_post(request):
+        type = request.POST.get('type')
+        if type is None:
+            return HttpResponseBadRequest()
+        if type == 'POST':
+            return PasswordHandler.email_reset_password_link(request)
+        elif type == 'PUT':
+            return PasswordHandler.handle_reset_password(request)
+
+    @staticmethod
+    def render_reset_password_template(request):
         certificate = request.GET.get('certificate')
         r = redis.Redis()
         username = r.get(certificate)
@@ -59,11 +67,8 @@ class PasswordHandler:
 
     @staticmethod
     def email_reset_password_link(request):
-        form = ForgotPasswordForm(data=request.POST)
         try:
-            if form.is_valid():
-                email_or_username = form.clean().get('email_or_username')
-            user = Member.objects.get(Q(username=email_or_username) | Q(email=email_or_username))
+            user = PasswordHandler.get_user(ForgotPasswordForm(data=request.POST))
         except Member.DoesNotExist:
             return HttpResponseNotFound()
         certificate = uuid.uuid4().hex
@@ -72,6 +77,12 @@ class PasswordHandler:
         PasswordHandler.send_email(user.email, email_text)
         # TODO: create html file
         return HttpResponse("We have sent you a reset password link; Check your email.")
+
+    @staticmethod
+    def get_user(form):
+        if form.is_valid():
+            email_or_username = form.clean().get('email_or_username')
+        return Member.objects.get(Q(username=email_or_username) | Q(email=email_or_username))
 
     @staticmethod
     def handle_reset_password(request):
