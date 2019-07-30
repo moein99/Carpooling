@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'root.apps.RootConfig',
     'account.apps.AccountConfig',
     'group.apps.GroupConfig',
@@ -76,7 +77,7 @@ WSGI_APPLICATION = 'carpooling.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'carpooling_db'
     }
 }
