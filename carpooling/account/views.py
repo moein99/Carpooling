@@ -97,7 +97,7 @@ class PasswordHandler:
         if reset_pass_certificate is None:
             return render(request, 'forgot_password.html', {'form': ForgotPasswordForm()})
         else:
-            return PasswordHandler.render_reset_password(request)
+            return PasswordHandler.render_reset_password_template(request)
 
     @staticmethod
     def do_post(request):
@@ -105,7 +105,7 @@ class PasswordHandler:
         if type is None:
             return HttpResponseBadRequest()
         if type == 'POST':
-            return PasswordHandler.email_reset_password_link(request)
+            return PasswordHandler.handle_reset_password_email(request)
         elif type == 'PUT':
             return PasswordHandler.handle_reset_password(request)
 
@@ -166,6 +166,7 @@ class PasswordHandler:
         user = Member.objects.get(username=username)
         if form.is_valid():
             user.set_password(form.clean().get('password'))
+            user.save()
             return redirect(reverse('account:login'))
         else:
             return HttpResponseBadRequest()
