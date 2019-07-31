@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Trips</title>
+</head>
+<p>
+    {% if user.is_authenticated %}
+        {% include 'authenticated_navbar.html' %}
+    {% else %}
+        {% include 'not_authenticated_navbar.html' %}
+    {% endif %}
+
+    {% for group_title, trips in group_name_to_trips.items %}
+        <p>
+            {% for trip in trips%}
+                from : lat : {{ trip.source.x }} , lan : {{ trip.source.y }}
+                <br>
+                to : lat : {{ trip.destination.x }}, {{ trip.destination.y }}
+                <br>
+                car provider is : {{ trip.car_provider.username }}
+                <br>
+                <a href="#">Join This Trip </a>
+            {% endfor %}
+        </p>
+    {% endfor %}
+</body>
+</html>

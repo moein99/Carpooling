@@ -19,6 +19,18 @@
             <br>
             car provider is : {{ trip.car_provider.username }}
             <br>
+            {% if trips.is_private %}
+                <p>
+                this trips comes from groups :
+                {% for group in trip.groups %}
+                    {{ group.title }}, &nbsp
+                {% endfor %}
+                </p>
+            {% else %}
+                <p>
+                this trip is public
+                </p>
+            {% endif %}
             <a href="#">Join This Trip </a>
         </p>
     {% endfor %}
