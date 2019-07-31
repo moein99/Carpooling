@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trip</title>
+</head>
+<body>
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
+<a href="{% url 'trip:trip_creation' %}">Create a trip</a>
+
+<div>
+    <ul id="trips_list">
+        
+    </ul>
+</div>
+<br>
+
+</body>
+</html>
