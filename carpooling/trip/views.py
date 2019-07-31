@@ -1,7 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponse
 from django.shortcuts import render, redirect
+
 # Create your views here.
 from django.urls import reverse
 from account.models import Member
@@ -11,7 +12,7 @@ from trip.models import Trip
 
 
 def trip_init(request):
-    return render(request, 'trip_manager.html', {})
+    return render(request, 'trip_manager.html', {'user_trips': get_user_trips(request.user.id)})
 
 
 @login_required()
@@ -43,3 +44,11 @@ def get_user_groups(user_id):
     for group in groups:
         groups_dict[group.title] = group.code
     return groups_dict
+
+
+def get_user_trips(user_id):
+    return Trip.objects.filter(car_provider_id=user_id)
+
+
+def trip_page(request, trip_id):
+    return HttpResponse("This will be trip page!")
