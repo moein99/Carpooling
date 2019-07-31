@@ -15,15 +15,15 @@ from account.models import Member
 class PasswordHandler:
     @staticmethod
     def handle(request):
-        certificate = request.GET.get('certificate')
+        reset_pass_certificate = request.GET.get('certificate')
         if request.method == 'GET':
-            return PasswordHandler.do_get(request, certificate)
+            return PasswordHandler.do_get(request, reset_pass_certificate)
         elif request.method == 'POST':
             return PasswordHandler.do_post(request)
 
     @staticmethod
-    def do_get(request, certificate):
-        if certificate is None:
+    def do_get(request, reset_pass_certificate):
+        if reset_pass_certificate is None:
             return render(request, 'forgot_password.html', {'form': ForgotPasswordForm()})
         else:
             return PasswordHandler.render_reset_password(request)
@@ -40,17 +40,17 @@ class PasswordHandler:
 
     @staticmethod
     def render_reset_password_template(request):
-        certificate = request.GET.get('certificate')
+        reset_pass_certificate = request.GET.get('certificate')
         r = redis.Redis()
-        username = r.get(certificate)
+        username = r.get(reset_pass_certificate)
         if username is None:
             return HttpResponseNotFound()
-        return render(request, 'reset_password.html', {'form': ResetPasswordForm(initial={'certificate': certificate})})
+        return render(request, 'reset_password.html', {'form': ResetPasswordForm(initial={'certificate': reset_pass_certificate})})
 
     @staticmethod
-    def create_email_text(user, certificate):
+    def create_email_text(user, reset_pass_certificate):
         email_text = render_to_string('reset_password_email.html', {
-            'link': 'localhost:8000/account/password/?certificate=' + certificate,
+            'link': 'localhost:8000/account/password/?certificate=' + reset_pass_certificate,
             'user': user,
         })
         return email_text
@@ -66,14 +66,14 @@ class PasswordHandler:
         )
 
     @staticmethod
-    def email_reset_password_link(request):
+    def handle_reset_password_email(request):
         try:
             user = PasswordHandler.get_user(ForgotPasswordForm(data=request.POST))
         except Member.DoesNotExist:
             return HttpResponseNotFound()
-        certificate = uuid.uuid4().hex
-        redis.Redis().set(certificate, user.username, 60 * 15)
-        email_text = PasswordHandler.create_email_text(user, certificate)
+        reset_pass_certificate = uuid.uuid4().hex
+        redis.Redis().set(reset_pass_certificate, user.username, 60 * 15)
+        email_text = PasswordHandler.create_email_text(user, reset_pass_certificate)
         PasswordHandler.send_email(user.email, email_text)
         # TODO: create html file
         return HttpResponse("We have sent you a reset password link; Check your email.")
@@ -88,8 +88,8 @@ class PasswordHandler:
     def handle_reset_password(request):
         form = ResetPasswordForm(data=request.POST)
         if form.is_valid():
-            certificate = form.clean().get('certificate')
-        username = redis.Redis().get(certificate).decode()
+            reset_pass_certificate = form.clean().get('certificate')
+        username = redis.Redis().get(reset_pass_certificate).decode()
         if username is None:
             return HttpResponseForbidden()
         user = Member.objects.get(username=username)
