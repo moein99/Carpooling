@@ -1,32 +1,13 @@
 from django import forms
-
-from group.models import Group, Membership
+from group.models import Group
 
 
 class GroupForm(forms.ModelForm):
-    source_lat = forms.DecimalField(required=False)
-    source_lon = forms.DecimalField(required=False)
-    is_private = forms.BooleanField(required=False)
-
     class Meta:
         model = Group
-        fields = ['code', 'title', 'is_private', 'description', 'source_lat', 'source_lon']
+        fields = ['code', 'title', 'is_private', 'description']
 
-    def clean_source_lat(self):
-
-        lat = self.cleaned_data['source_lat']
-        if lat is None:
-            self.cleaned_data['source_lon'] = None
-        return lat
-
-    def clean_source_lon(self):
-        lon = self.cleaned_data['source_lon']
-        if lon is None:
-            self.cleaned_data['source_lat'] = None
-        return lon
-
-
-class MembershipForm(forms.ModelForm):
-    class Meta:
-        model = Membership
-        fields = ['member', 'group', 'role']
+    def __init__(self, *args, **kwargs):
+        super(GroupForm, self).__init__(*args, **kwargs)
+        self.fields['description'].required = False
+        self.fields['is_private'].required = False
