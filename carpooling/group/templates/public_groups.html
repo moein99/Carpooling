@@ -11,7 +11,9 @@
 {% else %}
     {% include 'not_authenticated_navbar.html' %}
 {% endif %}
-
+<div>
+    <a href="{% url 'group:groups'%}">back to managing groups</a>
+</div>
 <div>
     Public groups
 </div>

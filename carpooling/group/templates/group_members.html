@@ -11,10 +11,16 @@
     {% include 'not_authenticated_navbar.html' %}
 {% endif %}
 {#should add the user profile link to this page#}
+<div>
+    <a href="{% url 'group:group' group.id %}">back to the group</a>
+</div>
 {% for member in members %}
     <li>
     {{ member.username }} : {{ member.email }} {% if is_owner %}
-        <a href="{% url 'group:remove-member' group.id member.id %}">remove</a>
+        <form name="create_station" method="post" action="{% url 'group:remove-member' group.id member.id%}">
+            {% csrf_token %}
+            <input type="submit" value="remove" />
+        </form>
     {% endif %}
     </li>
 {% endfor %}

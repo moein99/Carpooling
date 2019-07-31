@@ -14,6 +14,9 @@
     {{ err }}
 {% endfor %}
 <div>
+    <a href="{% url 'group:groups'%}">back to managing groups</a>
+</div>
+<div>
     <a href="{% url 'group:group-members' group.id %}">Group members</a>
 </div>
 <div>
