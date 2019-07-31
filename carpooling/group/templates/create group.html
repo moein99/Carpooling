@@ -1,8 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>create group</title>
+ <meta charset="UTF-8">
+
+
+
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.css' rel='stylesheet' />
+
+
+    <title>Create a trip</title>
 </head>
 <body>
 
@@ -12,11 +20,45 @@
     {% include 'not_authenticated_navbar.html' %}
 {% endif %}
 
-<form method="POST">
+<br>
+<br>
+<br>
+<div id='map' style="width: 100em; height: 50em;"></div>
+<pre id='coordinates' class='coordinates'></pre>
+<br>
+<br>
+<br>
+
+<form method="POST" action="">
     {{ form.errors }}
     {% csrf_token %}
-    {{ form.as_table }}
+    {{ form.as_p }}
     <input type="submit" value="Create your Group">
+    <input type="hidden" name="source_lat" id="id_source_lat">
+    <input type="hidden" name="source_lon" id="id_source_lon">
 </form>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoibW9laW45OSIsImEiOiJjanlwdml1cmkxZjlvM25ub29ibWx6MXZ6In0.qeTaEdOQHEbgUXTapsbj0A';
+    var coordinates = document.getElementById('coordinates');
+    var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v11',
+    center: [51.40, 35.70],
+    zoom: 11
+    });
+
+    var source_marker = new mapboxgl.Marker({
+        draggable: true
+        }).setLngLat([51.40, 35.70]).addTo(map).setPopup(new mapboxgl.Popup({ offset: 25 }) // add popups
+    .setHTML('<h3>Source</h3>'));;
+
+    function onDragEnd() {
+        const source_lngLat = source_marker.getLngLat();
+        document.getElementById('id_source_lat').value = source_lngLat.lat;
+        document.getElementById('id_source_lon').value = source_lngLat.lng;
+    }
+    source_marker.on('dragend', onDragEnd);
+</script>
 </body>
 </html>
