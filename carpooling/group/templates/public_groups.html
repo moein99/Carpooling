@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>public_groups</title>
+</head>
+<body>
+
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
+<div>
+    Public groups
+</div>
+{%for group in public_groups %}
+<li>
+    <a href="{% url 'group:group' group.id %}">{{ group.code }} : {{ group.title }} :{% if group.is_private %}private
+    {% else %}public {% endif %} </a>
+</li>
+{% endfor %}
+
+
+</body>
+</html>

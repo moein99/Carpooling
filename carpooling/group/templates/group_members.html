@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>group members</title>
+</head>
+<body>
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+{#should add the user profile link to this page#}
+{% for member in members %}
+    <li>
+    {{ member.username }} : {{ member.email }} {% if is_owner %}
+        <a href="{% url 'group:remove-member' group.id member.id %}">remove</a>
+    {% endif %}
+    </li>
+{% endfor %}
+
+</body>
+</html>

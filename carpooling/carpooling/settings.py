@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'account.apps.AccountConfig',
     'group.apps.GroupConfig',
     'trip.apps.TripConfig',
+    'mapwidgets',
 ]
 
 MIDDLEWARE = [
@@ -118,9 +119,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 AUTH_USER_MODEL = 'account.Member'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 LOGIN_URL = '/account/login/'
+GOOGLE_MAPS_API_KEY = 'AIzaSyClNxEa82Gm1crj0iaatMVh90DT4MjGMbA'

@@ -1,6 +1,6 @@
 from django.db import models
+from django.contrib.gis.db import models as gis_models
 
-# Create your models here.
 from account.models import Member
 
 
@@ -10,11 +10,7 @@ class Group(models.Model):
     is_private = models.BooleanField(default=False)
     description = models.TextField(null=True)
     members = models.ManyToManyField(Member, through='Membership')
-    source_lat = models.DecimalField(max_digits=12, decimal_places=9, null=True)
-    source_lon = models.DecimalField(max_digits=12, decimal_places=9, null=True)
-
-    def get_source(self):
-        return self.source_lat, self.source_lon
+    source = gis_models.PointField(null=True)
 
 
 class Membership(models.Model):
@@ -25,3 +21,6 @@ class Membership(models.Model):
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     role = models.CharField(max_length=2, choices=ROLES)
+
+    class Meta:
+        unique_together = ['member', 'group']
