@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Reset Password</title>
+    <title>Home</title>
 </head>
 <body>
 {% if user.is_authenticated %}
@@ -11,11 +11,7 @@
     {% include 'not_authenticated_navbar.html' %}
 {% endif %}
 
-<form method="POST">
-    {% csrf_token %}
-    <input type="hidden" value="PUT" name="type">
-    {% form.as_p %}
-    <input type="submit" value="Reset">
-</form>
+<h1>This Is Home Page</h1>
+<a href="{% url 'group:groups' %}">group manager</a>
 </body>
 </html>

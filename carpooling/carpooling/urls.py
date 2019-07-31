@@ -23,9 +23,10 @@ from trip import urls as trip_urls
 from root import urls as root_urls
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('account/', include(account_urls, namespace='account')),
-    path('group/', include(group_urls, namespace='group')),
-    path('trip/', include(trip_urls, namespace='trip')),
-    path('/', include(root_urls, namespace='root'))
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+                  path('admin/', admin.site.urls),
+                  path('account/', include(account_urls, namespace='account')),
+                  path('group/', include(group_urls, namespace='group')),
+                  path('trip/', include(trip_urls, namespace='trip')),
+                  path('', include(root_urls, namespace='root'))
+              ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL,
+                                                                                         document_root=settings.STATIC_ROOT)

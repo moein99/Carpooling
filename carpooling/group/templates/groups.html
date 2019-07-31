@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Groups</title>
+</head>
+<body>
+
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
+<div>
+    <a href="{% url 'group:groupcreate' %}">Create Group</a>
+</div>
+<div>
+    <a href="{% url 'group:public' %}">Public Groups</a>
+</div>
+<div>
+    My groups
+</div>
+{%for group in user_owned_groups %}
+<li>
+    <a href="{% url 'group:group' group.id %}">{{ group.code }} : {{ group.title }} :{% if group.is_private %}private
+    {% else %}public {% endif %} </a>
+</li>
+{% endfor %}
+<div>
+    joined groups
+</div>
+{%for group in user_joined_groups %}
+<li>
+    <a href="{% url 'group:group' group.id %}">{{ group.code }} :{{ group.title }} : {% if group.is_private %}private
+    {% else %}public {% endif %} </a>
+</li>
+{% endfor %}
+
+</body>
+</html>

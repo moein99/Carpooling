@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>group</title>
+</head>
+<body>
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+{% for err in errors %}
+    {{ err }}
+{% endfor %}
+<div>
+    <a href="{% url 'group:groups'%}">back to managing groups</a>
+</div>
+<div>
+    <a href="{% url 'group:group-members' group.id %}">Group members</a>
+</div>
+<div>
+{{ group.code }}: {{ group.title }}: {% if group.is_private %} private {% else %} public {% endif %} {{ group.description }}
+</div>
+{% if has_joined %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="leave">
+        <input type="hidden" name="type" value="leave">
+
+    </form>
+{% else %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="join">
+        <input type="hidden" name="type" value="join">
+    </form>
+{% endif %}
+
+{% if is_owner %}
+<form method="POST">
+    {% csrf_token %}
+    <input type="text" name="username">
+    <input type="submit" value="add by username">
+    <input type="hidden" name="type" value="add">
+</form>
+{% endif %}
+</body>
+</html>
