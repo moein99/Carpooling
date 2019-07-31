@@ -28,7 +28,7 @@ class GroupViewTestCase(TestCase):
         response = self.client.get(path='/group/')
         self.assertEqual(response.status_code, 200)
 
-    def test_authorized_get(self):
+    def test_authorized_get_request(self):
         self.client.login(username='testuser', password='majid123')
         response = self.client.get(path='/group/create/')
         self.assertEqual(response.status_code, 200)
@@ -63,12 +63,12 @@ class GroupViewTestCase(TestCase):
         test_membership = Membership.objects.get(group__exact=test_group)
         self.assertIsNotNone(test_membership)
 
-    def test_public_group_get(self):
+    def test_public_group_get_request(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path='/group/public/', data={'type': 'leave'})
+        response = self.client.get(path='/group/public/', data={'type': 'leave'})
         self.assertEqual(response.status_code, 200)
 
-    def test_get_group_members(self):
+    def test_group_members(self):
         self.client.login(username='testuser', password='majid123')
         group = mommy.make(Group, is_private=False)
         response = self.client.get(path='/group/{}/member/'.format(group.id))
@@ -129,10 +129,8 @@ class AddMemberToGroupTest(TestCase):
         self.assertEqual(0, len(test_membership))
 
     def test_owner_add_other_members(self):
-        self.client.login(username='testuser', password='majid123')
+        member, group = self.get_objects(True)
         user = Member.objects.get(username='testuser')
-        group = mommy.make(Group)
-        member = mommy.make(Member)
         membership = mommy.make(Membership, member_id=user.id, group_id=group.id, role='ow')
         response = self.client.post(path='/group/{}/'.format(group.id),
                                     data={'type': 'add', 'username': member.username})
@@ -148,7 +146,7 @@ class AddMemberToGroupTest(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(0, len(test_membership))
 
-    def test_owner_add_members_notfound(self):
+    def test_add_not_created_member(self):
         self.client.login(username='testuser', password='majid123')
         user = Member.objects.get(username='testuser')
         group = mommy.make(Group)
@@ -158,44 +156,40 @@ class AddMemberToGroupTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_delete_member_as_owner(self):
-        self.client.login(username='testuser', password='majid123')
+        member, group = self.get_objects(False)
         user = Member.objects.get(username='testuser')
-        group = mommy.make(Group, is_private=False)
-        member = mommy.make(Member)
         mommy.make(Membership, group_id=group.id, member_id=user.id, role='ow')
         mommy.make(Membership, group_id=group.id, member_id=member.id, role='me')
-        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id,member.id), data={})
+        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id, member.id), data={})
         test_membership = Membership.objects.filter(group_id=group.id, member_id=member.id)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(0, len(test_membership))
 
     def test_unauthorized_delete_member(self):
-        self.client.login(username='testuser', password='majid123')
-        group = mommy.make(Group, is_private=True)
-        member = mommy.make(Member)
+        member, group = self.get_objects(True)
         mommy.make(Membership, group_id=group.id, member_id=member.id, role='me')
-        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id,member.id), data={})
+        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id, member.id), data={})
         test_membership = Membership.objects.get(group_id=group.id, member_id=member.id)
         self.assertEqual(response.status_code, 403)
         self.assertIsNotNone(test_membership)
 
     def test_delete_member_as_member(self):
-        self.client.login(username='testuser', password='majid123')
+        member, group = self.get_objects(True)
         user = Member.objects.get(username='testuser')
-        group = mommy.make(Group, is_private=False)
-        member = mommy.make(Member)
         mommy.make(Membership, group_id=group.id, member_id=user.id, role='me')
         mommy.make(Membership, group_id=group.id, member_id=member.id, role='me')
-        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id,member.id), data={})
+        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id, member.id), data={})
         test_membership = Membership.objects.filter(group_id=group.id, member_id=member.id)
         self.assertEqual(response.status_code, 403)
         self.assertIsNotNone(test_membership)
 
-    def test_delete_member_get(self):
-        self.client.login(username='testuser', password='majid123')
-        group = mommy.make(Group, is_private=False)
-        member = mommy.make(Member)
+    def test_delete_member_get_request(self):
+        member, group = self.get_objects(True)
         response = self.client.get(path='/group/{}/member/remove/{}/'.format(group.id, member.id))
         self.assertEqual(response.status_code, 302)
 
-
+    def get_objects(self, is_private):
+        self.client.login(username='testuser', password='majid123')
+        group = mommy.make(Group, is_private=is_private)
+        member = mommy.make(Member)
+        return member, group
