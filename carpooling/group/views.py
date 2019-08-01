@@ -20,7 +20,8 @@ class GroupManageSystem:
             form = GroupForm(data=request.POST)
             if form.is_valid():
                 instance = form.save(commit=False)
-                instance.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
+                if 'source_lat' in request.POST:
+                    instance.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
                 instance.save()
                 Membership.objects.create(member=member, group=instance, role='ow')
                 return redirect(reverse('group:groups'))
@@ -103,8 +104,6 @@ class GroupManageSystem:
     @staticmethod
     def add_to_group(username, group):
         member = get_object_or_404(Member, username=username)
-        if member is None:
-            return "the username does not match any users"
         Membership.objects.create(member=member, group=group, role='me')
         return username + " has been added to the group"
 
@@ -120,7 +119,7 @@ class GroupManageSystem:
         if group.is_private and len(membership) == 0:
             return HttpResponseForbidden("you are not a member of this group")
         is_owner = False
-        if membership[0].role == 'ow':
+        if len(membership) and membership[0].role == 'ow':
             is_owner = True
         members = Member.objects.filter(membership__group_id=group_id).values('id', 'username', 'email')
         return render(request, "group_members.html", {
@@ -133,12 +132,13 @@ class GroupManageSystem:
     @login_required
     def remove_group_members(request, group_id, member_id):
         member, group, membership = GroupManageSystem.get_group_member_membership(request, group_id)
-        if group.is_private and len(membership) == 0:
-            return HttpResponseForbidden("you are not authorized to remove a member")
-        if len(membership) and membership[0].role == 'ow':
-            group_member = get_object_or_404(Member, id=member_id)
-            membership = Membership.objects.get(group_id=group.id, member_id=group_member.id)
-            membership.delete()
-            return redirect(reverse('group:group-members', kwargs={'group_id': group_id}))
-        else:
-            return HttpResponseForbidden("you are not authorized to remove a member")
+        if request.method == 'POST':
+            if group.is_private and len(membership) == 0:
+                return HttpResponseForbidden("you are not authorized to remove a member")
+            if len(membership) and membership[0].role == 'ow':
+                membership = Membership.objects.get(group_id=group.id, member_id=member_id)
+                membership.delete()
+                return redirect(reverse('group:group-members', kwargs={'group_id': group_id}))
+            else:
+                return HttpResponseForbidden("you are not authorized to remove a member")
+        return redirect(reverse('group:group-members', kwargs={'group_id': group_id}))
