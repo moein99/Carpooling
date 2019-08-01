@@ -31,16 +31,18 @@ class TripManageSystem:
 
     @staticmethod
     def handle_create(request_obj):
+        source = Point(float(request_obj.POST['source_lat']), float(request_obj.POST['source_lng']))
+        destination = Point(float(request_obj.POST['destination_lat']), float(request_obj.POST['destination_lng']))
+
         trip_form = TripForm(data=request_obj.POST)
-        if trip_form.is_valid():
-            trip_form = trip_form.save(commit=False)
-            trip_form.car_provider = request_obj.user
-            trip_form.status = Trip.WAITING_STATUS
-            trip_form.source = Point(float(request_obj.POST['source_lat']), float(request_obj.POST['source_lng']))
-            trip_form.destination = Point(float(request_obj.POST['destination_lat']),
-                                          float(request_obj.POST['destination_lng']))
-            trip_form.save()
-            return redirect(reverse('trip:trip_add_groups', kwargs={'trip_id': trip_form.id}))
+        if trip_form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
+            trip_obj = trip_form.save(commit=False)
+            trip_obj.car_provider = request_obj.user
+            trip_obj.status = Trip.WAITING_STATUS
+            trip_obj.source = source
+            trip_obj.destination = destination
+            trip_obj.save()
+            return redirect(reverse('trip:trip_add_groups', kwargs={'trip_id': trip_obj.id}))
         else:
             return HttpResponseBadRequest('Invalid Request')
 
@@ -63,14 +65,17 @@ class TripManageSystem:
             trip = get_object_or_404(Trip, pk=trip_id)
             user_nearby_groups = []
             for group in user_groups:
-                if group.source is not None:
-                    if point_distance(trip.source, group.source).meters <= DISTANCE_THRESHOLD or \
-                            point_distance(trip.destination, group.source).meters <= DISTANCE_THRESHOLD:
-                        user_nearby_groups.append(group)
+                if group.source is not None and TripManageSystem.is_in_range(group.source, trip.source) or \
+                        TripManageSystem.is_in_range(group.source, trip.destination):
+                    user_nearby_groups.append(group)
                 else:
                     user_nearby_groups.append(group)
             user_groups_cache[(user.id, trip_id)] = user_nearby_groups
             return user_nearby_groups
+
+    @staticmethod
+    def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
+        return point_distance(first_point, second_point).meters <= threshold
 
     @staticmethod
     def handle_trip_group_relation(request_obj, trip_id, user_nearby_groups):
