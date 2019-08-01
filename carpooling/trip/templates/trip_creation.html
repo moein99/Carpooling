@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
 
 
-
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.css' rel='stylesheet' />
@@ -19,11 +18,10 @@
 {% else %}
     {% include 'not_authenticated_navbar.html' %}
 {% endif %}
+
 <br>
 <div id='map' style="width: 100em; height: 50em;"></div>
 <br>
-
-
 
 <form method="POST">
     {% csrf_token %}
@@ -34,7 +32,6 @@
     <input type="hidden" name="source_lng" id="id_source_lng" value="35.70">
     <input type="hidden" name="destination_lat" id="id_destination_lat" value="51.30">
     <input type="hidden" name="destination_lng" id="id_destination_lng" value="35.70">
-    <ul id="groups_container"></ul>
 </form>
 
 <script>
@@ -67,27 +64,6 @@
     }
     source_marker.on('dragend', onDragEnd);
     destination_marker.on('dragend', onDragEnd);
-</script>
-
-<script>
-    var groups_container = document.getElementById('groups_container');
-    {% for group, code in groups.items %}
-        var paragraph = document.createElement('li');
-        var label = document.createElement('label');
-        label.setAttribute('for', '{{ group }}');
-        label.appendChild(document.createTextNode('{{ group }}'));
-        var input = document.createElement('input');
-        input.setAttribute('type', 'checkbox');
-        input.setAttribute('name', {{ code}});
-        input.setAttribute('id', 'id_{{ code}}');
-        paragraph.appendChild(label);
-        paragraph.appendChild(input);
-        groups_container.appendChild(paragraph);
-    {% endfor %}
-
-    function checkbox_on_click() {
-
-    }
 </script>
 
 </body>
