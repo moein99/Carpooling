@@ -1,42 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<style>
-ul {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background-color: #333;
-}
-
-li {
-  float: right;
-}
-
-li a {
-  display: block;
-  color: white;
-  text-align: center;
-  padding: 14px 16px;
-  text-decoration: none;
-}
-
-li a:hover:not(.active) {
-  background-color: #111;
-}
-
-.active {
-  background-color: #4CAF50;
-}
-</style>
-    <title>Home</title>
+    <TITLE>auth</TITLE>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+    <style>
+        #menu_item:hover {
+            background-color: red;
+        }
+    </style>
 </head>
 <body>
-<ul>
-    <li style="float: left"><a href="{% url 'root:home' %}">Home</a></li>
-    <li><a href="{% url 'account:signup' %}">Signup</a></li>
-    <li><a href="{% url 'account:login' %}">Login</a></li>
-</ul>
+
+    <div class="ui labeled icon inverted menu">
+        <a href="{% url 'root:home' %}" class="item" id="menu_item">
+            <i class="home icon"></i>
+            Home
+        </a>
+        <a href="{% url 'account:login' %}" class="item" id="menu_item">
+            <i class="sign-in icon"></i>
+            Login
+        </a>
+    </div>
+
 </body>
 </html>

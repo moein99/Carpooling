@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Base</title>
+</head>
+<body style="background-color: #F0F0F0">
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
+</body>
+</html>

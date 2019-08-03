@@ -1,52 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<style>
-.navbar_ul{
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background-color: #333;
-}
-
-.navbar_li{
-  float: right;
-}
-
-.navbar_li a {
-  display: block;
-  color: white;
-  text-align: center;
-  padding: 14px 16px;
-  text-decoration: none;
-}
-
-.navbar_li a:hover:not(.active) {
-  background-color: #111;
-}
-
-.active {
-  background-color: #4CAF50;
-}
-</style>
-    <title>Home</title>
+    <TITLE>auth</TITLE>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+    <style>
+        #menu_item:hover {
+            background-color: red;
+        }
+    </style>
 </head>
 <body>
-<ul class="navbar_ul">
-    <li style="float: left" class="navbar_li"><a href="{% url 'root:home' %}">Home</a></li style="float: left" class="navbar">
-    <li class="navbar_li"><a id="logout_btn">Logout</a></li>
-    <li class="navbar_li"><a href="{% url 'account:user_profile' %}">Profile</a></li>
-</ul>
-<script>
-    var url = '{% url 'account:logout' %}';
-    var data = {};
-    $('#logout_btn').one("click", function () {
-        $.post(url, data, function (data, status) {
-            $("body").html(data)
-        });
-    })
-</script>
+
+    <div class="ui labeled icon inverted menu">
+        <a href="{% url 'account:login' %}" class="item" id="menu_item">
+            <i class="home icon"></i>
+            Home
+        </a>
+        <a href="{% url 'group:groupcreate' %}" class="item" id="menu_item">
+            <i class="users icon"></i>
+            Create Group
+        </a>
+        <a href="{% url 'trip:' %}" class="item" id="menu_item">
+            <i class="car icon"></i>
+            Create Trip
+        </a>
+        <a class="right floated item" id="menu_item">
+            <i class="user icon"></i>
+            Profile
+        </a>
+        <a class="item" id="menu_item">
+            <i class="sign-out icon"></i>
+            Logout
+        </a>
+    </div>
 </body>
 </html>

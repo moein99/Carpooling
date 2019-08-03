@@ -5,11 +5,7 @@
     <title>Home</title>
 </head>
 <body>
-{% if user.is_authenticated %}
-    {% include 'authenticated_navbar.html' %}
-{% else %}
-    {% include 'not_authenticated_navbar.html' %}
-{% endif %}
+{% include 'base.html' %}
 
 <h1>This Is Home Page</h1>
 <a href="{% url 'group:groups' %}">group manager</a>
