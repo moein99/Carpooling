@@ -12,7 +12,8 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_create_new_group(request):
+    def create_new_group(request):
+        member = get_object_or_404(Member, id=request.user.id)
         if request.method == "GET":
             form = GroupForm()
         else:
@@ -22,7 +23,7 @@ class GroupManageSystem:
                 if 'source_lat' in request.POST:
                     instance.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
                 instance.save()
-                Membership.objects.create(member=request.user, group=instance, role='ow')
+                Membership.objects.create(member=member, group=instance, role='ow')
                 return redirect(reverse('group:groups'))
         return render(request, "create group.html", {
             "form": form,
@@ -31,9 +32,11 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_show_group(request):
-        user_owned_groups = Group.objects.filter(membership__role='ow', members=request.user).defer('description', 'source')
-        user_joined_groups = Group.objects.filter(membership__role='me', members=request.user).defer('description', 'source')
+    def show_group(request):
+        member = get_object_or_404(Member, id=request.user.id)
+
+        user_owned_groups = Group.objects.filter(membership__role='ow', members=member).defer('description', 'source')
+        user_joined_groups = Group.objects.filter(membership__role='me', members=member).defer('description', 'source')
         return render(request, "groups.html", {
             'user_owned_groups': user_owned_groups,
             'user_joined_groups': user_joined_groups,
@@ -41,7 +44,8 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_show_public_groups(request):
+    def show_public_groups(request):
+        member = get_object_or_404(Member, id=request.user.id)
         public_groups = Group.objects.filter(is_private=False)
         return render(request, "public_groups.html", {
             'public_groups': public_groups
@@ -49,14 +53,15 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_manage_group(request, group_id):
+    def manage_group(request, group_id):
         errors = []
         member, group, membership = GroupManageSystem.get_group_member_membership(request, group_id)
         if group.is_private and len(membership) == 0:
             return HttpResponseForbidden("you are not a member of this group")
         is_owner, has_joined = GroupManageSystem.manage_group_authorization(membership)
         if request.method == "POST":
-            errors, has_joined = GroupManageSystem.manage_group_post(request, has_joined, is_owner, group, membership)
+            errors, has_joined = GroupManageSystem.manage_group_post(request, has_joined, is_owner, member, group,
+                                                                     membership)
         return render(request, "manage_group.html", {
             'group': group,
             'is_owner': is_owner,
@@ -66,7 +71,7 @@ class GroupManageSystem:
 
     @staticmethod
     def get_group_member_membership(request, group_id):
-        member = request.user
+        member = get_object_or_404(Member, id=request.user.id)
         group = get_object_or_404(Group, id=group_id)
         membership = Membership.objects.filter(group_id=group.id, member_id=member.id)
         return member, group, membership
@@ -82,11 +87,11 @@ class GroupManageSystem:
         return is_owner, has_joined
 
     @staticmethod
-    def manage_group_post(request, has_joined, is_owner, group, membership):
+    def manage_group_post(request, has_joined, is_owner, member, group, membership):
         errors = []
         request_type = request.POST['type']
         if request_type == 'join' and not has_joined:
-            errors.append(GroupManageSystem.join_group(request.user, group))
+            errors.append(GroupManageSystem.join_group(member, group))
             has_joined = True
         elif request_type == 'leave' and has_joined:
             membership[0].delete()
@@ -109,7 +114,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_get_group_members(request, group_id):
+    def get_group_members(request, group_id):
         member, group, membership = GroupManageSystem.get_group_member_membership(request, group_id)
         if group.is_private and len(membership) == 0:
             return HttpResponseForbidden("you are not a member of this group")
@@ -125,7 +130,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_remove_group_members(request, group_id, member_id):
+    def remove_group_members(request, group_id, member_id):
         member, group, membership = GroupManageSystem.get_group_member_membership(request, group_id)
         if request.method == 'POST':
             if group.is_private and len(membership) == 0:
