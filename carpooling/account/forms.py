@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth import authenticate
 
 from account.models import Member
 
@@ -90,3 +91,27 @@ class EditProfileForm(forms.ModelForm):
         super(EditProfileForm, self).__init__(*args, **kwargs)
         # self.fields['profile_picture'].required = Falss
         self.fields['bio'].required = False
+
+
+class ChangePasswordForm(forms.Form):
+    username = forms.CharField(max_length=150, widget=forms.HiddenInput())
+    old_password = forms.CharField(max_length=128, widget=forms.PasswordInput())
+    password = forms.CharField(max_length=128, widget=forms.PasswordInput())
+    confirm_password = forms.CharField(max_length=128, widget=forms.PasswordInput())
+
+    class Meta:
+        fields = ['username', 'old_password', 'password', 'confirm_password']
+
+    def clean(self):
+        cleaned_data = super(ChangePasswordForm, self).clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+        username = cleaned_data.get('username')
+        old_password = cleaned_data.get('old_password')
+        if password != confirm_password:
+            raise forms.ValidationError('password and confirm_password does not match')
+        user = authenticate(username=username, password=old_password)
+        if not user:
+            raise forms.ValidationError('Wrong password')
+        return cleaned_data
+

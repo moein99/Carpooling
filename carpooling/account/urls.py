@@ -9,5 +9,5 @@ urlpatterns = [
     path('profile/<int:user_id>/', UserInterfaceHandler.handle_profile, name='user_profile'),
     path('profile/<int:user_id>/report/', report, name='report_member'),
     path('profile/edit/', UserInterfaceHandler.handle_edit_profile, name='edit'),
-    path('password/', PasswordHandler.handle, name='password'),
+    path('password/reset/', PasswordHandler.handle, name='password'),
 ]
