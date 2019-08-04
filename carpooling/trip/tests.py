@@ -24,7 +24,7 @@ class TripCreationTest(TestCase):
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '90', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 200)
 
     def test_invalid_dates(self):
@@ -32,7 +32,7 @@ class TripCreationTest(TestCase):
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '-1', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
 
     def test_invalid_capacity(self):
@@ -40,10 +40,10 @@ class TripCreationTest(TestCase):
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '-1', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
         post_data['capacity'] = 0
-        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
 
     def test_invalid_point(self):
@@ -51,7 +51,7 @@ class TripCreationTest(TestCase):
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '-1', 'destination_lng': '-1',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
 
 
@@ -116,6 +116,9 @@ class GetTripsTest(TestCase):
         TripGroups.objects.create(trip=self.trip5, group=self.group4)
         TripGroups.objects.create(trip=self.trip6, group=self.group2)
         TripGroups.objects.create(trip=self.trip6, group=self.group3)
+
+    def test_get_owned_trips(self):
+        pass
 
     def test_get_owned_trips(self):
         self.c.logout()

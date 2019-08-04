@@ -11,10 +11,98 @@ from geopy.distance import distance as point_distance
 
 from trip.forms import TripForm
 from trip.models import Trip, TripGroups
+from expiringdict import ExpiringDict
+
+user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5*60)
+
+DISTANCE_THRESHOLD = 100  # threshold scale: meters
 
 
 # Create your views here.
 class TripHandler:
+    @staticmethod
+    @login_required
+    def handle_create_trip(request):
+        if request.method == 'GET':
+            return TripHandler.do_get_create_trip(request)
+        elif request.method == 'POST':
+            return TripHandler.do_post_create_trip(request)
+
+    @staticmethod
+    def do_get_create_trip(request):
+        return render(request, 'trip_creation.html', {'form': TripForm()})
+
+    @staticmethod
+    def do_post_create_trip(request):
+        trip = TripHandler.create_trip(request.user, request.POST)
+        if trip is not None:
+            return redirect(reverse('trip:add-to-groups', kwargs={'trip_id': trip.id}))
+        return HttpResponseBadRequest('Invalid Request')
+
+    @staticmethod
+    def create_trip(car_provider, post_date):
+        source = Point(float(post_date['source_lat']), float(post_date['source_lng']))
+        destination = Point(float(post_date['destination_lat']), float(post_date['destination_lng']))
+        trip_form = TripForm(data=post_date)
+        if trip_form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
+            trip_obj = trip_form.save(commit=False)
+            trip_obj.car_provider = car_provider
+            trip_obj.status = Trip.WAITING_STATUS
+            trip_obj.source, trip_obj.destination = source, destination
+            trip_obj.save()
+            return trip_obj
+        return None
+
+    @staticmethod
+    def handle_trip(request, trip_id):
+        raise NotImplementedError()
+
+    @staticmethod
+    @login_required
+    def handle_add_to_groups(request, trip_id):
+        user_nearby_groups = TripHandler.get_nearby_groups(request.user, trip_id)
+        if request.method == 'GET':
+            return TripHandler.do_get_add_to_groups(request, user_nearby_groups)
+        elif request.method == 'POST':
+            return TripHandler.do_get_add_to_groups(request, trip_id, user_nearby_groups)
+
+    @staticmethod
+    def do_get_add_to_groups(request, user_nearby_groups):
+        return render(request, "trip_add_group.html", {'groups': user_nearby_groups})
+
+    @staticmethod
+    def do_post_add_to_groups(request, trip_id, user_nearby_groups):
+        trip = Trip.objects.get(id=trip_id)
+        for group in user_nearby_groups:
+            if request.POST.get(group.code, None) == 'on':
+                TripGroups.objects.create(group=group, trip=trip)
+        return redirect(reverse("trip:trip", kwargs={'trip_id': trip_id}))
+
+    @staticmethod
+    def get_nearby_groups(user, trip_id):
+        user_nearby_groups = user_groups_cache.get((user.id, trip_id))
+        if user_nearby_groups is not None:
+            return user_groups_cache[(user.id, trip_id)]
+        user_groups = user.group_set.all()
+        trip = get_object_or_404(Trip, id=trip_id)
+        user_nearby_groups = []
+        for group in user_groups:
+            if TripHandler.is_group_near_trip(group, trip):
+                user_nearby_groups.append(group)
+        user_groups_cache[(user.id, trip_id)] = user_nearby_groups
+        return user_nearby_groups
+
+    @staticmethod
+    def is_group_near_trip(group, trip):
+        if group.source is not None and not (TripHandler.is_in_range(group.source, trip.source) or
+                                             TripHandler.is_in_range(group.description, trip.destination)):
+            return False
+        return True
+
+    @staticmethod
+    def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
+        return point_distance(first_point, second_point).meters <= threshold
+
     @staticmethod
     def handle_public_trips(request):
         if request.method == 'GET':
@@ -105,86 +193,3 @@ class TripHandler:
         trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
             is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
         return render(request, 'show_available_trips.html', {'trips': trips})
-
-
-DISTANCE_THRESHOLD = 100
-# threshold scale: meters
-
-user_groups_cache = {}
-
-
-class TripManageSystem:
-    @staticmethod
-    @login_required
-    def trip_creation(request):
-        if request.method == 'GET':
-            return render(request, 'trip_creation.html', {'form': TripForm()})
-        elif request.method == 'POST':
-            return TripManageSystem.handle_create(request)
-
-    @staticmethod
-    def handle_create(request_obj):
-        trip_id = TripManageSystem.create_trip(request_obj)
-        if trip_id:
-            return redirect(reverse('trip:trip_add_groups', kwargs={'trip_id': trip_id}))
-        return HttpResponseBadRequest('Invalid Request')
-
-    @staticmethod
-    def create_trip(request_obj):
-        source = Point(float(request_obj.POST['source_lat']), float(request_obj.POST['source_lng']))
-        destination = Point(float(request_obj.POST['destination_lat']), float(request_obj.POST['destination_lng']))
-        trip_form = TripForm(data=request_obj.POST)
-        if trip_form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
-            trip_obj = trip_form.save(commit=False)
-            trip_obj.car_provider = request_obj.user
-            trip_obj.status = Trip.WAITING_STATUS
-            trip_obj.source = source
-            trip_obj.destination = destination
-            trip_obj.save()
-            return trip_obj.id
-        return None
-
-    @staticmethod
-    @login_required
-    def trip_add_groups(request, trip_id):
-        user_nearby_groups = TripManageSystem.get_nearby_groups(request.user, trip_id)
-        if request.method == 'GET':
-            return render(request, "trip_add_group.html", {'groups': user_nearby_groups})
-        elif request.method == 'POST':
-            TripManageSystem.handle_trip_group_relation(request, trip_id, user_nearby_groups)
-            return redirect(reverse("trip:trip_page", kwargs={'trip_id': trip_id}))
-
-    @staticmethod
-    def get_nearby_groups(user, trip_id):
-        if (user.id, trip_id) in user_groups_cache:
-            return user_groups_cache[(user.id, trip_id)]
-        user_groups = user.group_set.all()
-        trip = get_object_or_404(Trip, pk=trip_id)
-        user_nearby_groups = []
-        for group in user_groups:
-            if TripManageSystem.is_group_near_trip(group, trip):
-                user_nearby_groups.append(group)
-        user_groups_cache[(user.id, trip_id)] = user_nearby_groups
-        return user_nearby_groups
-
-    @staticmethod
-    def is_group_near_trip(group, trip):
-        if group.source is not None and not (TripManageSystem.is_in_range(group.source, trip.source) or
-                                             TripManageSystem.is_in_range(group.source, trip.destination)):
-            return False
-        return True
-
-    @staticmethod
-    def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
-        return point_distance(first_point, second_point).meters <= threshold
-
-    @staticmethod
-    def handle_trip_group_relation(request_obj, trip_id, user_nearby_groups):
-        trip = Trip.objects.get(id=trip_id)
-        for group in user_nearby_groups:
-            if request_obj.POST.get(group.code, "") == 'on':
-                TripGroups.objects.create(group=group, trip=trip)
-
-    @staticmethod
-    def trip_page(request, trip_id):
-        return HttpResponse("This will be trip page!")
