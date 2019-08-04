@@ -6,7 +6,7 @@ from django.utils import timezone
 # Create your tests here.
 from account.models import Member
 from group.models import Group, Membership
-from trip.models import Trip, TripGroups
+from trip.models import Trip, TripGroups, Companionship
 
 
 class GetTripsTest(TestCase):
@@ -49,8 +49,14 @@ class GetTripsTest(TestCase):
                                          car_provider=self.mohsen, status=Trip.WAITING_STATUS, capacity=4,
                                          start_estimation=timezone.now(), end_estimation=timezone.now())
         self.trip6 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
+                                         car_provider=self.ali, status=Trip.DONE_STATUS, capacity=4,
+                                         start_estimation=timezone.now(), end_estimation=timezone.now())
+        self.trip7 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True,
                                          car_provider=self.ali, status=Trip.WAITING_STATUS, capacity=4,
                                          start_estimation=timezone.now(), end_estimation=timezone.now())
+
+        Companionship.objects.create(trip=self.trip4, member=self.mohsen, source=Point(5, 6), destination=Point(6, 7))
+        Companionship.objects.create(trip=self.trip6, member=self.mohsen, source=Point(5, 6), destination=Point(6, 7))
 
         TripGroups.objects.create(trip=self.trip1, group=self.group1)
         TripGroups.objects.create(trip=self.trip1, group=self.group3)
@@ -99,8 +105,7 @@ class GetTripsTest(TestCase):
         self.assertNotEqual(p1, None)
         self.assertNotEqual(p2, None)
         self.assertNotEqual(p5, None)
-        self.assertNotEqual(p6, None)
-        self.assertEqual((p3, p4), (None, None))
+        self.assertEqual((p3, p4, p6), (None, None, None))
 
     def test_get_categorized_trips_without_public(self):
         self.c.logout()
@@ -205,10 +210,46 @@ class GetTripsTest(TestCase):
         response = self.c.get('/trip/group/5/', follow=False)
         self.assertEqual(response.status_code, 404)
 
-    # path = 'active/'
     def test_get_active_trips(self):
-        pass
+        self.c.logout()
+        response = self.c.get('/trip/active/', follow=False)
+        self.assertRedirects(response, '/account/login/?next=/trip/active/')
 
-    # path = 'all/'
+        self.c.login(username='mohsen', password='12345678')
+
+        response = self.c.get('/trip/active/', follow=True)
+        soup = bs(response.content)
+        p1 = soup.find("p", {"id": self.trip1.id})
+        p2 = soup.find("p", {"id": self.trip2.id})
+        p3 = soup.find("p", {"id": self.trip3.id})
+        p4 = soup.find("p", {"id": self.trip4.id})
+        p5 = soup.find("p", {"id": self.trip5.id})
+        p6 = soup.find("p", {"id": self.trip6.id})
+        self.assertNotEqual(p1, None)
+        self.assertNotEqual(p3, None)
+        self.assertNotEqual(p4, None)
+        self.assertNotEqual(p5, None)
+        self.assertEqual((p2, p6), (None, None))
+
     def test_get_available_trips(self):
-        pass
+        self.c.logout()
+        response = self.c.get('/trip/all/', follow=False)
+        self.assertRedirects(response, '/account/login/?next=/trip/all/')
+
+        self.c.login(username='mohsen', password='12345678')
+
+        response = self.c.get('/trip/all/', follow=False)
+        soup = bs(response.content)
+        p1 = soup.find("p", {"id": self.trip1.id})
+        p2 = soup.find("p", {"id": self.trip2.id})
+        p3 = soup.find("p", {"id": self.trip3.id})
+        p4 = soup.find("p", {"id": self.trip4.id})
+        p5 = soup.find("p", {"id": self.trip5.id})
+        p6 = soup.find("p", {"id": self.trip6.id})
+        p7 = soup.find("p", {"id": self.trip7.id})
+        self.assertNotEqual(p1, None)
+        self.assertNotEqual(p2, None)
+        self.assertNotEqual(p3, None)
+        self.assertNotEqual(p4, None)
+        self.assertNotEqual(p5, None)
+        self.assertEqual((p6, p7), (None, None))

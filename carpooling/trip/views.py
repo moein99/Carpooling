@@ -85,7 +85,7 @@ class TripHandler:
     @staticmethod
     def do_get_active_trips(request):
         user = request.user
-        trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct()
+        trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct().exclude(status=Trip.DONE_STATUS)
         return render(request, 'show_trips.html', {'trips': trips})
 
     @staticmethod
