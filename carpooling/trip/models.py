@@ -30,6 +30,7 @@ class Trip(models.Model):
     capacity = models.PositiveSmallIntegerField(validators=[MaxValueValidator(20)])
     start_estimation = models.DateTimeField()
     end_estimation = models.DateTimeField()
+    trip_description = models.CharField(max_length=200, null=True)
 
 
 class Companionship(models.Model):

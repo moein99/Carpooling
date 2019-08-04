@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>create group</title>
+
+
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no'/>
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.0/mapbox-gl.css' rel='stylesheet'/>
+
+
+    <title>Create a trip</title>
 </head>
 <body>
 
@@ -12,11 +19,80 @@
     {% include 'not_authenticated_navbar.html' %}
 {% endif %}
 
-<form method="POST">
+<br>
+    <div id='map' style="width: 100%; height: 50em; display: block;"></div>
+<br>
+
+<button onclick="map_btn()" id="id_map_btn">Remove source location</button>
+
+<form method="POST" action="" id="id_form">
     {{ form.errors }}
     {% csrf_token %}
-    {{ form.as_table }}
+    {{ form.as_p }}
     <input type="submit" value="Create your Group">
+    <input type="hidden" name="source_lat" id="id_source_lat" value="35.7">
+    <input type="hidden" name="source_lon" id="id_source_lon" value="51.4">
 </form>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoibW9laW45OSIsImEiOiJjanlwdml1cmkxZjlvM25ub29ibWx6MXZ6In0.qeTaEdOQHEbgUXTapsbj0A';
+    var map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v11',
+        center: [51.40, 35.70],
+        zoom: 11
+    });
+
+    var source_marker = new mapboxgl.Marker({
+        draggable: true
+    }).setLngLat([51.40, 35.70]).addTo(map).setPopup(new mapboxgl.Popup({offset: 25}) // add popups
+        .setHTML('<h3>Source</h3>'));
+
+    function onDragEnd() {
+        const source_lngLat = source_marker.getLngLat();
+        document.getElementById('id_source_lat').value = source_lngLat.lat;
+        document.getElementById('id_source_lon').value = source_lngLat.lng;
+    }
+
+    source_marker.on('dragend', onDragEnd);
+</script>
+
+<script>
+    function map_btn() {
+        map = document.getElementById('map');
+        const form = document.getElementById('id_form');
+        if (map.style.display === 'none') {
+            map.style.display = 'block';
+            append_source_input(form);
+            onDragEnd();
+            document.getElementById('id_map_btn').innerText = 'Remove source location'
+        } else if (map.style.display === 'block') {
+            map.style.display = 'none';
+            delete_child_from_parent('id_form', 'id_source_lat');
+            delete_child_from_parent('id_form', 'id_source_lon');
+            document.getElementById('id_map_btn').innerText = 'Select source location'
+        }
+    }
+
+    function append_source_input(form) {
+        const source_lat_input = create_input('hidden', 'source_lat', 'id_source_lat');
+        const source_lon_input = create_input('hidden', 'source_lon', 'id_source_lon');
+        form.appendChild(source_lat_input);
+        form.appendChild(source_lon_input);
+    }
+
+    function create_input(type, name, id) {
+        const input = document.createElement('input');
+        input.setAttribute('type', type);
+        input.setAttribute('name', name);
+        input.setAttribute('id', id);
+        return input
+    }
+
+    function delete_child_from_parent(parent_id, child_id) {
+        document.getElementById(parent_id).removeChild(document.getElementById(child_id))
+    }
+</script>
+
 </body>
 </html>

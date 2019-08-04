@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add groups to your trip!</title>
+</head>
+<body>
+
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
+
+<form method="POST">
+    {% csrf_token %}
+    <ul id="groups_container"></ul>
+    <input type="submit" value="Add Groups">
+</form>
+
+
+<script>
+    var groups_container = document.getElementById('groups_container');
+    {% for group in groups %}
+        var list_item = document.createElement('li');
+        var label = document.createElement('label');
+        label.setAttribute('for', '{{ group.title }}');
+        label.appendChild(document.createTextNode('{{ group.title }}'));
+        var input = document.createElement('input');
+        input.setAttribute('type', 'checkbox');
+        input.setAttribute('name', '{{ group.code }}');
+        input.setAttribute('id', 'id_{{ group.code }}');
+        list_item.appendChild(label);
+        list_item.appendChild(input);
+        groups_container.appendChild(list_item);
+    {% endfor %}
+</script>
+
+</body>
+</html>
