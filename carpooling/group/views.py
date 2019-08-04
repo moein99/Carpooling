@@ -12,7 +12,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_create_new_group(request):
+    def handle_create_new_group(request):
         if request.method == "GET":
             form = GroupForm()
         else:
@@ -31,7 +31,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_show_group(request):
+    def handle_show_group(request):
         user_owned_groups = Group.objects.filter(membership__role='ow', members=request.user).defer('description', 'source')
         user_joined_groups = Group.objects.filter(membership__role='me', members=request.user).defer('description', 'source')
         return render(request, "groups.html", {
@@ -41,7 +41,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_show_public_groups(request):
+    def handle_show_public_groups(request):
         public_groups = Group.objects.filter(is_private=False)
         return render(request, "public_groups.html", {
             'public_groups': public_groups
@@ -49,7 +49,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_manage_group(request, group_id):
+    def handle_manage_group(request, group_id):
         errors = []
         member, group, membership = GroupManageSystem.get_group_member_membership(request, group_id)
         if group.is_private and len(membership) == 0:
@@ -109,7 +109,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_get_group_members(request, group_id):
+    def handle_get_group_members(request, group_id):
         member, group, membership = GroupManageSystem.get_group_member_membership(request, group_id)
         if group.is_private and len(membership) == 0:
             return HttpResponseForbidden("you are not a member of this group")
@@ -125,7 +125,7 @@ class GroupManageSystem:
 
     @staticmethod
     @login_required
-    def handel_remove_group_members(request, group_id, member_id):
+    def handle_remove_group_members(request, group_id, member_id):
         member, group, membership = GroupManageSystem.get_group_member_membership(request, group_id)
         if request.method == 'POST':
             if group.is_private and len(membership) == 0:
