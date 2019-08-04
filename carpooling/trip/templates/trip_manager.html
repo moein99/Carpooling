@@ -38,7 +38,7 @@
             ending_estimation.appendChild(document.createTextNode('Trip will end about {{ trip.end_estimation }}'));
             let link_to_trip = document.createElement('a');
             link_to_trip.appendChild(document.createTextNode('Go to trip'));
-            link_to_trip.setAttribute('href', '{% url 'trip:trip_page' trip.id %}');
+            link_to_trip.setAttribute('href', '{% url 'trip:trip' trip.id %}');
             list_item.appendChild(link_to_trip)
             list_item.appendChild(is_private);
             list_item.appendChild(source);
