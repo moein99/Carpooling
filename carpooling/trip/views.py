@@ -76,8 +76,12 @@ class TripManageSystem:
 
     @staticmethod
     def is_group_near_trip(group, trip):
-        return group.source is not None and TripManageSystem.is_in_range(group.source, trip.source) or \
-               TripManageSystem.is_in_range(group.source, trip.destination)
+        if group.source is not None:
+            if TripManageSystem.is_in_range(group.source, trip.source) or \
+                    TripManageSystem.is_in_range(group.source, trip.destination):
+                return True
+            return False
+        return True
 
     @staticmethod
     def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):

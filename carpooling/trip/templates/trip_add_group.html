@@ -29,7 +29,7 @@
         label.appendChild(document.createTextNode('{{ group.title }}'));
         var input = document.createElement('input');
         input.setAttribute('type', 'checkbox');
-        input.setAttribute('name', {{ group.code }});
+        input.setAttribute('name', '{{ group.code }}');
         input.setAttribute('id', 'id_{{ group.code }}');
         list_item.appendChild(label);
         list_item.appendChild(input);
