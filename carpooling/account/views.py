@@ -40,9 +40,8 @@ class LoginHandler:
         pass
 
 
-def is_user_exists(form):
-    username = form.data['username']
-    return Member.objects.all().filter(username=username).count() != 0
+def is_user_exists(username):
+    return Member.objects.all().filter(username=username).exists()
 
 
 def handle_login(request_obj):
@@ -57,7 +56,7 @@ def handle_login(request_obj):
 
 def handle_signup(request_obj):
     form = SignupForm(data=request_obj.POST)
-    if is_user_exists(form):
+    if is_user_exists(form.data['username']):
         messages.add_message(request_obj, messages.INFO, 'this username already exists')
         return render(request_obj, 'signup.html', {'form': SignupForm()})
     if form.is_valid():

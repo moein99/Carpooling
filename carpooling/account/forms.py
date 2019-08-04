@@ -1,6 +1,6 @@
 from django import forms
 
-from account.models import Member
+from account.models import Member, Mail
 
 
 class ForgotPasswordForm(forms.Form):
@@ -60,6 +60,21 @@ class LoginForm(forms.ModelForm):
         help_texts = {
             'username': None,
         }
+
+
+class MailForm(forms.ModelForm):
+    receiver_username = forms.CharField(max_length=30)
+
+    class Meta:
+        fields = ('text', 'receiver', 'sender', 'sent_time', 'receiver_username')
+        model = Mail
+
+        exclude = ('sender', 'sent_time', 'receiver')
+
+    def clean(self):
+        cleaned_data = super(MailForm, self).clean()
+        check_username_validity(cleaned_data.get('receiver_username'))
+        return cleaned_data
 
 
 def check_passwords_equality(password, confirm_password):
