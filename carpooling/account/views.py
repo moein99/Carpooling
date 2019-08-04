@@ -56,7 +56,6 @@ def handle_signup(request_obj):
     if form.is_valid():
         member = form.save(commit=False)
         member.set_password(form.data['password'])
-        member.full_clean()
         member.save()
         return redirect(reverse('account:login'))
     return render(request_obj, 'signup.html', {'form': form}, status=400)
