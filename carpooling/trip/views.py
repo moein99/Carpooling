@@ -31,9 +31,14 @@ class TripManageSystem:
 
     @staticmethod
     def handle_create(request_obj):
+        if TripManageSystem.create_trip(request_obj):
+            return redirect(reverse('trip:trip_add_groups', kwargs={'trip_id': trip_obj.id}))
+        return HttpResponseBadRequest('Invalid Request')
+
+    @staticmethod
+    def create_trip(request_obj):
         source = Point(float(request_obj.POST['source_lat']), float(request_obj.POST['source_lng']))
         destination = Point(float(request_obj.POST['destination_lat']), float(request_obj.POST['destination_lng']))
-
         trip_form = TripForm(data=request_obj.POST)
         if trip_form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
             trip_obj = trip_form.save(commit=False)
@@ -42,9 +47,8 @@ class TripManageSystem:
             trip_obj.source = source
             trip_obj.destination = destination
             trip_obj.save()
-            return redirect(reverse('trip:trip_add_groups', kwargs={'trip_id': trip_obj.id}))
-        else:
-            return HttpResponseBadRequest('Invalid Request')
+            return True
+        return False
 
     @staticmethod
     @login_required
@@ -60,18 +64,19 @@ class TripManageSystem:
     def get_nearby_groups(user, trip_id):
         if (user.id, trip_id) in user_groups_cache:
             return user_groups_cache[(user.id, trip_id)]
-        else:
-            user_groups = user.group_set.all()
-            trip = get_object_or_404(Trip, pk=trip_id)
-            user_nearby_groups = []
-            for group in user_groups:
-                if group.source is not None and TripManageSystem.is_in_range(group.source, trip.source) or \
-                        TripManageSystem.is_in_range(group.source, trip.destination):
-                    user_nearby_groups.append(group)
-                else:
-                    user_nearby_groups.append(group)
-            user_groups_cache[(user.id, trip_id)] = user_nearby_groups
-            return user_nearby_groups
+        user_groups = user.group_set.all()
+        trip = get_object_or_404(Trip, pk=trip_id)
+        user_nearby_groups = []
+        for group in user_groups:
+            if TripManageSystem.is_group_near_trip(group, trip):
+                user_nearby_groups.append(group)
+        user_groups_cache[(user.id, trip_id)] = user_nearby_groups
+        return user_nearby_groups
+
+    @staticmethod
+    def is_group_near_trip(group, trip):
+        return group.source is not None and TripManageSystem.is_in_range(group.source, trip.source) or \
+               TripManageSystem.is_in_range(group.source, trip.destination)
 
     @staticmethod
     def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
