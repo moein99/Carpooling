@@ -35,9 +35,9 @@
 </head>
 <body>
 <ul class="navbar_ul">
-    <li style="float: left" class="navbar_li"><a href="{% url 'root:home' %}">Home</a></li style="float: left" class="navbar">
+    <li style="float: left" class="navbar_li"><a href="{% url 'root:home' %}">Home</a></li>
     <li class="navbar_li"><a id="logout_btn">Logout</a></li>
-    <li class="navbar_li"><a href="{% url 'account:user_profile' %}">Profile</a></li>
+    <li class="navbar_li"><a href="{% url 'account:user_profile' request.user.id %}">Profile</a></li>
 </ul>
 <script>
     var url = '{% url 'account:logout' %}';

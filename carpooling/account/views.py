@@ -76,5 +76,5 @@ def password(request):
     return None
 
 
-def profile(request):
+def profile(request, user_id):
     return None

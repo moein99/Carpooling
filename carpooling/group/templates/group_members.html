@@ -16,12 +16,13 @@
 </div>
 {% for member in members %}
     <li>
-    {{ member.username }} : {{ member.email }} {% if is_owner %}
-        <form name="create_station" method="post" action="{% url 'group:remove-member' group.id member.id%}">
-            {% csrf_token %}
-            <input type="submit" value="remove" />
-        </form>
-    {% endif %}
+        <a href="{% url 'account:user_profile' member.id %}">{{ member.username }} : {{ member.email }}
+            {% if is_owner %}</a>
+                <form name="create_station" method="post" action="{% url 'group:remove-member' group.id member.id %}">
+                    {% csrf_token %}
+                    <input type="submit" value="remove"/>
+                </form>
+            {% endif %}
     </li>
 {% endfor %}
 

@@ -9,10 +9,15 @@ class SignupForm(forms.ModelForm):
 
     class Meta:
         model = Member
-        fields = ('username', 'email', 'password', 'confirm_password')
+        fields = (
+            'username', 'email', 'password', 'confirm_password', 'first_name', 'last_name', 'phone_number', 'gender')
         help_texts = {
             'username': None,
         }
+
+    def __init__(self, *args, **kwargs):
+        super(SignupForm, self).__init__(*args, **kwargs)
+        self.fields['gender'].required = False
 
     def clean(self):
         cleaned_data = super(SignupForm, self).clean()
