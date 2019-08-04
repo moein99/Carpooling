@@ -31,8 +31,9 @@ class TripManageSystem:
 
     @staticmethod
     def handle_create(request_obj):
-        if TripManageSystem.create_trip(request_obj):
-            return redirect(reverse('trip:trip_add_groups', kwargs={'trip_id': trip_obj.id}))
+        trip_id = TripManageSystem.create_trip(request_obj)
+        if trip_id:
+            return redirect(reverse('trip:trip_add_groups', kwargs={'trip_id': trip_id}))
         return HttpResponseBadRequest('Invalid Request')
 
     @staticmethod
@@ -47,8 +48,8 @@ class TripManageSystem:
             trip_obj.source = source
             trip_obj.destination = destination
             trip_obj.save()
-            return True
-        return False
+            return trip_obj.id
+        return None
 
     @staticmethod
     @login_required
