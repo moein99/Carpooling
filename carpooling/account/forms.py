@@ -53,3 +53,14 @@ def check_username_validity(username):
         raise forms.ValidationError(
             "username length should be in range 5 to 30 characters"
         )
+
+
+class EditProfileForm(forms.ModelForm):
+    class Meta:
+        model = Member
+        fields = ['first_name', 'last_name', 'phone_number', 'bio', 'profile_picture']
+
+    def __init__(self, *args, **kwargs):
+        super(EditProfileForm, self).__init__(*args, **kwargs)
+        # self.fields['profile_picture'].required = Falss
+        self.fields['bio'].required = False

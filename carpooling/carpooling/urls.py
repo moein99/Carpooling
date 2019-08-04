@@ -28,5 +28,4 @@ urlpatterns = [
                   path('group/', include(group_urls, namespace='group')),
                   path('trip/', include(trip_urls, namespace='trip')),
                   path('', include(root_urls, namespace='root'))
-              ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL,
-                                                                                         document_root=settings.STATIC_ROOT)
+              ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

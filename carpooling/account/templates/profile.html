@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
+<div name = "username">
+    <p>
+        <bold>{{ member.username}}</bold>
+    </p>
+</div>
+<img src="{{ member.profile_picture.url }}" width="300">
+<p>
+    {{ member.first_name }} , {{ member.last_name }}
+</p>
+{% if status != "ANONYMOUS_PROFILE" %}
+    <a href="{% url 'account:report_member' member.id %}">
+        Report this user
+    </a>
+    <p>
+        Phone number : {{ member.phone_number }}
+        {% if member.gender != None %}
+            <br>
+            gender : {{ member.gender }}
+        {% endif %}
+    </p>
+{% endif %}
+{% if status == "MY_PROFILE" %}
+    <a href="{% url 'account:edit' %}">
+        edit your profile
+    </a>
+{% endif %}
+</body>
+</html>

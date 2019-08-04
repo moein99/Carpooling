@@ -1,12 +1,14 @@
 from django.urls import path
-from . import views
-
+from account.views import AuthorisationHandler, UserInterfaceHandler, report, password
 
 app_name = "account"
 urlpatterns = [
-    path('login/', views.login, name='login'),
-    path('signup/', views.signup, name='signup'),
-    path('logout/', views.logout, name='logout'),
-    path('password/', views.password, name='password'),
-    path('profile/<int:user_id>/', views.profile, name='user_profile'),
+    path('login/', AuthorisationHandler.handle_login, name='login'),
+    path('signup/', AuthorisationHandler.handle_signup, name='signup'),
+    path('logout/', AuthorisationHandler.handle_logout, name='logout'),
+    path('password/', password, name='password'),
+    path('profile/<int:user_id>/', UserInterfaceHandler.handle_profile, name='user_profile'),
+    path('profile/<int:user_id>/report/', report, name='report_member'),
+    path('profile/edit/', UserInterfaceHandler.handle_edit_profile, name='edit'),
+
 ]
