@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trip</title>
+</head>
+<body>
+{% if user.is_authenticated %}
+    {% include 'authenticated_navbar.html' %}
+{% else %}
+    {% include 'not_authenticated_navbar.html' %}
+{% endif %}
+
+<a href="{% url 'trip:trip_creation' %}">Create a trip</a>
+
+<div>
+    <ul id="trips_list">
+        
+    </ul>
+</div>
+<br>
+
+{# I Hate UI #}
+<script>
+    let trips_list = document.getElementById('trips_list');
+    {% for user_trip in user_trips %}
+        var list_item = document.createElement('li');
+        {% if user_trip.trip_description %}
+            var description = document.createElement('p');
+            description.appendChild(document.createTextNode('{{ user_trip.trip_description }}'));
+            list_item.appendChild(description);
+        {% endif %}
+        var source = document.createElement('p');
+        source.appendChild(document.createTextNode('Source location is {{ user_trip.source}}'));
+        var destination = document.createElement('p');
+        destination.appendChild(document.createTextNode('Destination location is {{ user_trip.source}}'));
+        var is_private = document.createElement('p');
+        {% if user_trip.is_private %}
+            is_private.appendChild(document.createTextNode('Trip is a private trip'));
+        {% else %}
+            is_private.appendChild(document.createTextNode('Trip is a public trip'));
+        {% endif %}
+        var capacity = document.createElement('p');
+        capacity.appendChild(document.createTextNode('Capacity of trip is {{ user_trip.capacity }}'));
+        var starting_estimation = document.createElement('p');
+        starting_estimation.appendChild(document.createTextNode('Trip will start about {{ user_trip.start_estimation }}'));
+        var ending_estimation = document.createElement('p');
+        ending_estimation.appendChild(document.createTextNode('Trip will end about {{ user_trip.end_estimation }}'));
+        var link_to_trip = document.createElement('a');
+        link_to_trip.appendChild(document.createTextNode('Go to trip'));
+        link_to_trip.setAttribute('href', '{% url 'trip:trip_page' user_trip.id %}');
+        list_item.appendChild(link_to_trip)
+        list_item.appendChild(is_private);
+        list_item.appendChild(source);
+        list_item.appendChild(destination);
+        list_item.appendChild(capacity);
+        list_item.appendChild(starting_estimation);
+        list_item.appendChild(ending_estimation);
+        list_item.setAttribute('style', 'border: 1px solid; padding: 2px; margin:4px');
+        trips_list.appendChild(list_item);
+    {% endfor %}
+
+</script>
+
+</body>
+</html>
