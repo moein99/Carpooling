@@ -9,11 +9,15 @@ from group.models import Group
 
 
 class Trip(models.Model):
+    WAITING_STATUS = 'wa'
+    CLOSED_STATUS = 'cl'
+    IN_ROUTE_STATUS = 'in'
+    DONE_STATUS = 'dn'
     STATUS_CHOICES = [
-        ('wa', 'waiting'),
-        ('cl', 'closed'),
-        ('in', 'in route'),
-        ('dn', 'done')
+        (WAITING_STATUS, 'waiting'),
+        (CLOSED_STATUS, 'closed'),
+        (IN_ROUTE_STATUS, 'in route'),
+        (DONE_STATUS, 'done')
     ]
     source = gis_models.PointField()
     destination = gis_models.PointField()
@@ -26,6 +30,7 @@ class Trip(models.Model):
     capacity = models.PositiveSmallIntegerField(validators=[MaxValueValidator(20)])
     start_estimation = models.DateTimeField()
     end_estimation = models.DateTimeField()
+    trip_description = models.CharField(max_length=200, null=True)
 
 
 class Companionship(models.Model):
