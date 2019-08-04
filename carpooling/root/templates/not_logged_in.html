@@ -1,0 +1,12 @@
+{% extends 'base_menu.html' %}
+
+{% block menu_tags %}
+    <a href="{% url 'root:home' %}" class="item" id="menu_item">
+            <i class="home icon"></i>
+            Home
+    </a>
+    <a href="{% url 'account:login' %}" class="item" id="menu_item">
+        <i class="sign-in icon"></i>
+        Login
+    </a>
+{% endblock %}

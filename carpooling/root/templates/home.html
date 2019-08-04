@@ -1,14 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Home</title>
-</head>
-<body>
-{% include 'base.html' %}
+{% extends 'base.html' %}
 
-<h1>This Is Home Page</h1>
-<a href="{% url 'group:groups' %}">group manager</a>
-<a href="{% url 'trip:trip_init' %}">trip manager</a>
-</body>
-</html>
+{% block body %}
+    <h1>This Is Home Page</h1>
+{% endblock %}

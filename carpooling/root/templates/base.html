@@ -1,15 +1,44 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Base</title>
+    <meta content="text/html" charset="UTF-8">
+
+    {# stylesheets  #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
+    <link rel='stylesheet' href='{% static 'css/mapbox-gl.css' %}'/>
+
+    {# scripts #}
+    {# order matters jquery semantic #}
+    <script src="{% static 'js/jquery_3.3.1.js' %}"></script>
+    <script src="{% static 'js/semantic_2.4.2.js' %}"></script>
+    <script src="{% static 'js/mapbox-gl.js' %}"></script>
+    <title>{% block title %}Car Pooling{% endblock %}</title>
+    {% block extra_header %}{% endblock %}
+
+    <style>
+        #menu_item:hover {
+            background-color: red;
+        }
+        #logout_btn:hover {
+            background-color: red;
+        }
+    </style>
+
+
 </head>
-<body style="background-color: #F0F0F0">
-{% if user.is_authenticated %}
-    {% include 'authenticated_navbar.html' %}
-{% else %}
-    {% include 'not_authenticated_navbar.html' %}
-{% endif %}
+<body style="background-color: #F8F8F8">
+
+<div>
+    {% block top_bar %}
+        {% include 'top_bar.html' %}
+    {% endblock %}
+
+    <div id="body_container">
+        {% block body %}{% endblock %}
+    </div>
+</div>
 
 </body>
 </html>
