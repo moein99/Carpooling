@@ -68,7 +68,7 @@ class TripHandler:
 
     @staticmethod
     def do_get_add_to_groups(request, user_nearby_groups):
-        return render(request, "trip_add_group.html", {'groups': user_nearby_groups})
+        return render(request, "trip_add_to_groups.html", {'groups': user_nearby_groups})
 
     @staticmethod
     def do_post_add_to_groups(request, trip_id, user_nearby_groups):
@@ -111,7 +111,7 @@ class TripHandler:
     @staticmethod
     def do_get_public_trips(request):
         trips = Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))
-        return render(request, 'show_trips.html', {'trips': trips})
+        return render(request, 'trip_manager.html', {'trips': trips})
 
     @staticmethod
     def handle_group_trips(request, group_id):
@@ -130,7 +130,7 @@ class TripHandler:
                 return redirect(reverse('account:login'))
             elif not Membership.objects.filter(member=request.user, group=group).exists():
                 return HttpResponseForbidden()
-        return render(request, 'show_trips.html', {'trips': group.trip_set.all()})
+        return render(request, 'trip_manager.html', {'trips': group.trip_set.all()})
 
     @staticmethod
     @login_required
@@ -167,7 +167,7 @@ class TripHandler:
     def do_get_owned_trips(request):
         user = request.user
         trips = user.driving_trips.all()
-        return render(request, 'show_trips.html', {'trips': trips})
+        return render(request, 'trip_manager.html', {'trips': trips})
 
     @staticmethod
     @login_required
@@ -179,7 +179,7 @@ class TripHandler:
     def do_get_active_trips(request):
         user = request.user
         trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct().exclude(status=Trip.DONE_STATUS)
-        return render(request, 'show_trips.html', {'trips': trips})
+        return render(request, 'trip_manager.html', {'trips': trips})
 
     @staticmethod
     @login_required
@@ -192,4 +192,4 @@ class TripHandler:
         user = request.user
         trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
             is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
-        return render(request, 'show_available_trips.html', {'trips': trips})
+        return render(request, 'trip_manager.html', {'trips': trips})
