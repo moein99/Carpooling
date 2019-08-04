@@ -120,10 +120,10 @@ class PasswordHandler:
 
     @staticmethod
     def create_email_text(user, reset_pass_certificate):
-        email_text = render_to_string('reset_password_email.html', {
-            'link': 'localhost:8000/account/password/?certificate=' + reset_pass_certificate,
-            'user': user,
-        })
+        email_text = 'Hi @' + user.username + '!\n'
+        email_text += 'Click on the following link to reset your password:\n'
+        email_text += 'http://localhost:8000/account/password/?certificate=' + reset_pass_certificate + '\n'
+        email_text += 'Regards'
         return email_text
 
     @staticmethod
