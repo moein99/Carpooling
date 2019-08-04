@@ -141,7 +141,7 @@ class PasswordHandler:
         try:
             user = PasswordHandler.get_user(ForgotPasswordForm(data=request.POST))
         except Member.DoesNotExist:
-            return HttpResponseNotFound()
+            return HttpResponseNotFound("Account not found!")
         reset_pass_certificate = uuid.uuid4().hex
         redis.Redis().set(reset_pass_certificate, user.username, 60 * 15)
         email_text = PasswordHandler.create_email_text(user, reset_pass_certificate)
