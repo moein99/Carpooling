@@ -64,7 +64,7 @@ class TripHandler:
         if request.method == 'GET':
             return TripHandler.do_get_add_to_groups(request, user_nearby_groups)
         elif request.method == 'POST':
-            return TripHandler.do_get_add_to_groups(request, trip_id, user_nearby_groups)
+            return TripHandler.do_post_add_to_groups(request, trip_id, user_nearby_groups)
 
     @staticmethod
     def do_get_add_to_groups(request, user_nearby_groups):
@@ -155,7 +155,7 @@ class TripHandler:
         if user.is_anonymous or not user.is_authenticated:
             user = None
         groups = TripHandler.get_user_groups(user, request.GET.get('include-public-groups') == 'true')
-        return render(request, 'show_trips_categorized_by_group.html', {'groups': groups})
+        return render(request, 'trips_categorized_by_group.html', {'groups': groups})
 
     @staticmethod
     @login_required(login_url='/account/login/')
