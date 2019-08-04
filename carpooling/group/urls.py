@@ -11,4 +11,5 @@ urlpatterns = [
     path('<int:group_id>/member/', GroupManageSystem.handle_get_group_members, name="group-members"),
     path('<int:group_id>/member/remove/<int:member_id>/', GroupManageSystem.handle_remove_group_members, name="remove-member"),
 
+
 ]
