@@ -1,7 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpResponseNotFound, HttpResponseForbidden
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.urls import reverse
 
 from group.models import Group, Membership
 from trip.models import Trip
@@ -31,12 +32,12 @@ class TripHandler:
         except Group.DoesNotExist:
             return HttpResponseNotFound()
 
-        if group.is_private and (
-                request.user.is_anonymous or not request.user.is_authenticated or not Membership.objects.filter(
-                member=request.user, group=group).exists()):
-            return HttpResponseForbidden()
-        else:
-            return render(request, 'show_trips.html', {'trips': group.trip_set})
+        if group.is_private:
+            if request.user.is_anonymous or not request.user.is_authenticated:
+                return redirect(reverse('account:login'))
+            elif not Membership.objects.filter(member=request.user, group=group).exists():
+                return HttpResponseForbidden()
+        return render(request, 'show_trips.html', {'trips': group.trip_set.all()})
 
     @staticmethod
     @login_required
@@ -45,31 +46,26 @@ class TripHandler:
             return TripHandler.do_get_categorized_trips(request)
 
     @staticmethod
-    def get_trips_dict(groups):
-        group_name_to_trips = dict()
-        for group in groups:
-            group_name_to_trips[group.title] = group.trip_set
-        return group_name_to_trips
-
-    @staticmethod
     def get_user_groups(user, include_public_groups=False):
-        groups = Membership.objects.filter(member=user).values('group')
         if include_public_groups:
-            groups = (groups | Group.objects.filter(is_private=False)).distinct()
-        return groups
+            if user is None:
+                return Group.objects.filter(is_private=False)
+            return (user.group_set.all() | Group.objects.filter(is_private=False)).distinct()
+        else:
+            if user is None:
+                return Group.objects.none()
+            return user.group_set.all()
 
     @staticmethod
     def do_get_categorized_trips(request):
         user = request.user
-        if user.is_anonymous or user.is_authenticated:
+        if user.is_anonymous or not user.is_authenticated:
             user = None
-
-        groups = TripHandler.get_user_groups(user, request.GET.get('include_public_groups') == 'true')
-        group_name_to_trips = TripHandler.get_trips_dict(groups)
-        return render(request, 'show_trips_categorized_by_group.html', {'groups': group_name_to_trips})
+        groups = TripHandler.get_user_groups(user, request.GET.get('include-public-groups') == 'true')
+        return render(request, 'show_trips_categorized_by_group.html', {'groups': groups})
 
     @staticmethod
-    @login_required
+    @login_required(login_url='/account/login/')
     def handle_owned_trips(request):
         if request.method == 'GET':
             return TripHandler.do_get_owned_trips(request)

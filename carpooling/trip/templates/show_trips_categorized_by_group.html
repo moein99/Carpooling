@@ -11,18 +11,24 @@
         {% include 'not_authenticated_navbar.html' %}
     {% endif %}
 
-    {% for group_title, trips in group_name_to_trips.items %}
-        <p>
-            {% for trip in trips%}
-                from : lat : {{ trip.source.x }} , lan : {{ trip.source.y }}
-                <br>
-                to : lat : {{ trip.destination.x }}, {{ trip.destination.y }}
-                <br>
-                car provider is : {{ trip.car_provider.username }}
-                <br>
-                <a href="#">Join This Trip </a>
+    {% for group in groups %}
+        {% with group.id|slugify as group_id %}
+        <p id={{ "group-"|add:group_id }}>
+            {% for trip in group.trip_set.all %}
+                {% with trip.id|slugify as trip_id %}
+                <p id={{ "group-"|add:group_id|add:"-trip-"|add:trip_id }}>
+                    from : lat : {{ trip.source.x }} , lan : {{ trip.source.y }}
+                    <br>
+                    to : lat : {{ trip.destination.x }}, {{ trip.destination.y }}
+                    <br>
+                    car provider is : {{ trip.car_provider.username }}
+                    <br>
+                    <a href="#">Join This Trip </a>
+                </p>
+                {% endwith %}
             {% endfor %}
         </p>
+        {% endwith %}
     {% endfor %}
 </body>
 </html>
