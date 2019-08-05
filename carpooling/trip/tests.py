@@ -86,9 +86,13 @@ class GetTripsWithAnonymousUserTest(TestCase):
         response = self.c.get('/trip/group/?include-public-groups=true', follow=False)
         self.assertRedirects(response, '/account/login/?next=/trip/group/%3Finclude-public-groups%3Dtrue')
 
-    def test_get_group_trips(self):
-        g1 = Group.objects.create(id=1, code='group1', title='group1', is_private=True, description='this is group1')
-        g2 = Group.objects.create(id=2, code='group2', title='group2', is_private=False, description='this is group2')
+    def test_get_public_group_trips(self):
+        Group.objects.create(id=1, code='group1', title='group1', is_private=True, description='this is group1')
+        response = self.c.get('/trip/group/1/', follow=False)
+        self.assertRedirects(response, '/account/login/')
+
+    def test_get_private_group_trips(self):
+        g1 = Group.objects.create(id=1, code='group1', title='group1', is_private=False, description='this is group1')
 
         t1 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
                                  status=Trip.WAITING_STATUS, capacity=4, start_estimation=timezone.now(),
@@ -99,23 +103,15 @@ class GetTripsWithAnonymousUserTest(TestCase):
         t3 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True,
                                  status=Trip.WAITING_STATUS, capacity=4, start_estimation=timezone.now(),
                                  end_estimation=timezone.now())
-        t4 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True,
-                                 status=Trip.WAITING_STATUS, capacity=4, start_estimation=timezone.now(),
-                                 end_estimation=timezone.now())
-
         TripGroups.objects.create(trip=t1, group=g1)
-        TripGroups.objects.create(trip=t1, group=g2)
-        TripGroups.objects.create(trip=t2, group=g2)
-        TripGroups.objects.create(trip=t3, group=g2)
+        TripGroups.objects.create(trip=t2, group=g1)
 
         response = self.c.get('/trip/group/1/', follow=False)
-        self.assertRedirects(response, '/account/login/')
-
-        response = self.c.get('/trip/group/2/', follow=False)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
-        self.assertEqual(list(g2.trip_set.all()), list(trips))
+        self.assertEqual(list(g1.trip_set.all()), list(trips))
 
+    def test_get_not_existing_group_trips(self):
         response = self.c.get('/trip/group/5/', follow=False)
         self.assertEqual(response.status_code, 404)
 
@@ -219,11 +215,23 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
         user = self.mohsen
         self.assertEqual(list((user.group_set.all() | Group.objects.filter(is_private=False)).distinct()), list(groups))
 
-    def test_get_group_trips(self):
+    def test_get_participating_group_trips(self):
         response = self.c.get('/trip/group/1/', follow=True)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         self.assertEqual(list(self.g1.trip_set.all()), list(trips))
+
+    def test_get_not_participating_group_trips(self):
+        response = self.c.get('/trip/group/3/', follow=True)
+        self.assertEqual(response.status_code, 403)
+
+    def test_get_public_group_trips(self):
+        response = self.c.get('/trip/group/4/', follow=True)
+        self.assertEqual(response.status_code, 200)
+        trips = response.context['trips']
+        self.assertEqual(list(self.g4.trip_set.all()), list(trips))
+
+    def test_get_not_existing_group_trips(self):
         response = self.c.get('/trip/group/5/', follow=True)
         self.assertEqual(response.status_code, 404)
 
