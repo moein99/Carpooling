@@ -13,4 +13,5 @@ urlpatterns = [
     path('profile/<int:user_id>/report/', report, name='report_member'),
     path('profile/edit/', UserInterfaceHandler.handle_edit_profile, name='edit'),
     path('password/reset/', PasswordHandler.handle, name='password'),
+    path('password/change/', PasswordHandler.handle_change_password, name='change_password'),
 ]

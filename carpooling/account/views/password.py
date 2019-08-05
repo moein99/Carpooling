@@ -1,12 +1,12 @@
-
 import uuid
 import redis
+from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.db.models import Q
 from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.urls import reverse
-from account.forms import ForgotPasswordForm, ResetPasswordForm
+from account.forms import ForgotPasswordForm, ResetPasswordForm, ChangePasswordForm
 from account.models import Member
 
 
@@ -43,7 +43,8 @@ class PasswordHandler:
         username = r.get(reset_pass_certificate)
         if username is None:
             return HttpResponseNotFound()
-        return render(request, 'reset_password.html', {'form': ResetPasswordForm(initial={'certificate': reset_pass_certificate})})
+        return render(request, 'reset_password.html',
+                      {'form': ResetPasswordForm(initial={'certificate': reset_pass_certificate})})
 
     @staticmethod
     def create_email_text(user, reset_pass_certificate):
@@ -97,4 +98,27 @@ class PasswordHandler:
             return redirect(reverse('account:login'))
         else:
             return HttpResponseBadRequest()
+
+    @staticmethod
+    @login_required
+    def handle_change_password(request):
+        if request.method == "GET":
+            return render(request, 'reset_password.html',
+                          {'form': ChangePasswordForm(initial={'username': request.user.username})})
+        else:
+            type = request.POST.get('type')
+            if type == "PUT":
+                PasswordHandler.change_password(request)
+
+
+    @staticmethod
+    def change_password(request):
+        form = ChangePasswordForm(data=request.POST)
+        if form.is_valid():
+            user = Member.objects.get(id=request.user.id)
+            user.set_password(form.clean().get('password'))
+            user.save()
+            return redirect(reverse('account:user_profile'))
+
+
 

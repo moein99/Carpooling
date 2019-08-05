@@ -43,6 +43,9 @@
     </p>
 {% endif %}
 {% if status == "MY_PROFILE" %}
+    <a href="{% url 'account:change_password' %}">
+        change password
+    </a>
     <a href="{% url 'account:edit' %}">
         edit your profile
     </a>

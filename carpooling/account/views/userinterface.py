@@ -67,8 +67,6 @@ class UserInterfaceHandler:
         user.last_name = request.POST.get('last_name')
         user.bio = request.POST.get('bio')
         if 'profile_picture' in request.FILES:
-            # fs = FileSystemStorage()
-            # name = fs.save(request.FILES['profile_picture'].name, request.FILES['profile_picture'])
             user.profile_picture = request.FILES['profile_picture']
         user.phone_number = request.POST.get('phone_number')
         user.save()
