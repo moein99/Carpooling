@@ -1,0 +1,34 @@
+{% extends 'base_menu.html' %}
+
+{% block menu_tags %}
+    <a href="{% url 'root:home' %}" class="item" id="menu_item">
+            <i class="home icon"></i>
+            Home
+    </a>
+    <a href="{% url 'group:groups' %}" class="item" id="menu_item">
+        <i class="users icon"></i>
+        My Groups
+    </a>
+    <a href="{% url 'trip:trip_init' %}" class="item" id="menu_item">
+        <i class="car icon"></i>
+        My Trips
+    </a>
+    <a  href="{% url 'account:user_profile' request.user.id %}" class="right floated item" id="menu_item">
+        <i class="user icon"></i>
+        Profile
+    </a>
+    <a class="item" id="menu_item" onclick="logout_btn_on_click()">
+        <i class="sign-out icon"></i>
+        Logout
+    </a>
+
+    <script>
+        const url = '{% url 'account:logout' %}';
+        const data = {};
+        function logout_btn_on_click() {
+            $.post(url, data, function (data, status) {
+                $("body").html(data)
+            });
+        }
+    </script>
+{% endblock %}
