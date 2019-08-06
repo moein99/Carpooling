@@ -1,6 +1,6 @@
 from django import forms
 
-from trip.models import Trip
+from trip.models import Trip, TripRequest
 from dateutil.parser import parse
 
 
@@ -49,3 +49,22 @@ class TripForm(forms.ModelForm):
             return True
         else:
             return False
+
+
+class TripRequestForm(forms.ModelForm):
+    type = forms.CharField(max_length=4, widget=forms.HiddenInput)
+    create_new_request_set = forms.BooleanField(initial=False)
+    request_set_title = forms.CharField(max_length=50, widget=forms.HiddenInput)
+
+    def clean(self):
+        if not self.cleaned_data['create_new_request_set'] and self.cleaned_data['containing_set'] is None:
+            raise forms.ValidationError('No set assigned to request')
+        if self.cleaned_data['create_new_request_set'] and self.cleaned_data['request_set_title'] == '':
+            self.cleaned_data['request_set_title'] = 'No Title'
+        return self.cleaned_data
+
+    class Meta:
+        model = TripRequest
+        fields = ['source', 'destination', 'containing_set', 'request_set_title']
+
+

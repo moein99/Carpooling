@@ -9,7 +9,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from geopy.distance import distance as point_distance
 
-from trip.forms import TripForm
+from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups
 from expiringdict import ExpiringDict
 
@@ -56,6 +56,37 @@ class TripHandler:
     @staticmethod
     def handle_trip(request, trip_id):
         raise NotImplementedError()
+
+    @staticmethod
+    @login_required
+    def handle_requests(request, trip_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.method == 'GET':
+            return TripHandler.do_get_requests(request, trip)
+        elif request.method == 'POST':
+            if request.POST['type'] == 'POST':
+                return TripHandler.do_post_requests(request, trip)
+            elif request.POST['type'] == 'PUT':
+                return TripHandler.do_put_requests(request, trip)
+
+    @staticmethod
+    def do_get_requests(request, trip):
+        if request.user == trip.car_provider:
+            return render(request, 'join_trip.html', {'form': TripRequestForm(data={'type': 'POST'})})
+        else:
+            return render(request, 'trip_requests.html', {'requests': trip.requests})
+
+    @staticmethod
+    def do_post_requests(request, trip):
+        if request.user == trip.car_provider:
+            return HttpResponseForbidden()
+        pass
+
+    @staticmethod
+    def do_put_requests(request, trip):
+        if request.user != trip.car_provider:
+            return HttpResponseForbidden()
+        pass
 
     @staticmethod
     @login_required

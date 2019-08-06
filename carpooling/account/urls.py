@@ -3,6 +3,7 @@ from account.views.utils import report
 from account.views.password import PasswordHandler
 from account.views.authentication import AuthenticationHandler
 from account.views.profile import UserProfileHandler
+from account.views.trip_request_set import TripRequestSetHandler
 
 app_name = "account"
 urlpatterns = [
@@ -14,4 +15,5 @@ urlpatterns = [
     path('profile/edit/', UserProfileHandler.handle_edit_profile, name='edit'),
     path('password/reset/', PasswordHandler.handle, name='password'),
     path('password/change/', PasswordHandler.handle_change_password, name='change_password'),
+    path('request/trip/', TripRequestSetHandler.handle_request_sets_collection, name='trip-request-sets-collection')
 ]

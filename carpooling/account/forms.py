@@ -114,3 +114,4 @@ class ChangePasswordForm(forms.Form):
         if not self.user.check_password(old_password):
             raise forms.ValidationError('Wrong password')
         return cleaned_data
+
