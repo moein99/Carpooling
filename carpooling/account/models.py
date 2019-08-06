@@ -7,11 +7,11 @@ from django.core.validators import RegexValidator
 
 
 class Member(AbstractUser):
-    Male = "M"
-    Female = "F"
+    MALE_GENDER = "M"
+    FEMALE_GENDER = "F"
     GENDERS = [
-        (Male, "male"),
-        (Female, "female")
+        (MALE_GENDER, "male"),
+        (FEMALE_GENDER, "female")
     ]
     profile_picture = models.ImageField(null=True, upload_to='pictures/profile/')
     bio = models.TextField(null=True, max_length=300)

@@ -6,58 +6,70 @@ from account.forms import *
 from account.models import Member
 
 
-class UserInterfaceHandler:
+class UserProfileHandler:
     ANONYMOUS_PROFILE_STATUS = "ANONYMOUS_PROFILE"
     MEMBER_PROFILE_STATUS = "MEMBER_PROFILE"
-    MY_PROFILE_STATUS = "MY_PROFILE"
+    OWNED_PROFILE_STATUS = "OWNED_PROFILE"
 
     @staticmethod
     def handle_profile(request, user_id):
         if request.method == 'GET':
-            if request.user.is_authenticated:
-                return UserInterfaceHandler.show_profile_to_member(request, user_id)
-            else:
-                return UserInterfaceHandler.show_profile_to_anonymous(request, user_id)
+            return UserProfileHandler.do_get_profile(request, user_id)
         else:
             return HttpResponseNotAllowed("Method Not Allowed")
+
+    @staticmethod
+    def do_get_profile(request, user_id):
+        if request.user.is_authenticated:
+            return UserProfileHandler.show_profile_to_member(request, user_id)
+        else:
+            return UserProfileHandler.show_profile_to_anonymous(request, user_id)
 
     @staticmethod
     @login_required
     def show_profile_to_member(request, user_id):
         if request.user.id == user_id:
-            return UserInterfaceHandler.show_my_profile(request)
+            return UserProfileHandler.show_my_profile(request)
         else:
-            return UserInterfaceHandler.show_member_profile(request, user_id)
+            return UserProfileHandler.show_member_profile(request, user_id)
 
     @staticmethod
     def show_profile_to_anonymous(request, user_id):
         user_data = Member.objects.get(id=user_id)
         return render(request, "profile.html",
-                      {"status": UserInterfaceHandler.ANONYMOUS_PROFILE_STATUS, "member": user_data})
+                      {"status": UserProfileHandler.ANONYMOUS_PROFILE_STATUS, "member": user_data})
 
     @staticmethod
     def show_my_profile(request):
         return render(request, "profile.html",
-                      {"status": UserInterfaceHandler.MY_PROFILE_STATUS, "member": request.user})
+                      {"status": UserProfileHandler.OWNED_PROFILE_STATUS, "member": request.user})
 
     @staticmethod
     def show_member_profile(request, user_id):
         user_data = Member.objects.get(id=user_id)
         return render(request, "profile.html",
-                      {"status": UserInterfaceHandler.MEMBER_PROFILE_STATUS, "member": user_data})
+                      {"status": UserProfileHandler.MEMBER_PROFILE_STATUS, "member": user_data})
 
     @staticmethod
     @login_required
     def handle_edit_profile(request):
         if request.method == "GET":
-            form = EditProfileForm(instance=request.user)
+            return UserProfileHandler.do_get_edit_profile(request)
         elif request.method == "POST":
             if request.POST.get('type') == "PUT":
-                UserInterfaceHandler.update_member(request)
-                return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
+                return UserProfileHandler.do_put_edit_profile(request)
             else:
                 return HttpResponseNotAllowed("Response Not Allowed")
+
+    @staticmethod
+    def do_get_edit_profile(request):
+        form = EditProfileForm(instance=request.user)
         return render(request, "edit_profile.html", {"form": form})
+
+    @staticmethod
+    def do_put_edit_profile(request):
+        UserProfileHandler.update_member(request)
+        return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
 
     # change this when change models .
     @staticmethod

@@ -105,7 +105,7 @@ class PasswordHandler:
     def handle_change_password(request):
         if request.method == "GET":
             return render(request, 'change_password.html',
-                          {'form': ChangePasswordForm(initial={'username': request.user.username})})
+                          {'form': ChangePasswordForm(request.user)})
         else:
             request_type = request.POST.get('type')
             if request_type == "PUT":
@@ -115,11 +115,12 @@ class PasswordHandler:
 
     @staticmethod
     def change_password(request):
-        form = ChangePasswordForm(data=request.POST)
+        form = ChangePasswordForm(data=request.POST, user=request.user)
         if form.is_valid():
             user = Member.objects.get(id=request.user.id)
             user.set_password(form.clean().get('password'))
             user.save()
             return redirect(reverse('account:login'))
         else:
-            return HttpResponseBadRequest()
+            return render(request, 'change_password.html',
+                          {'form': form})

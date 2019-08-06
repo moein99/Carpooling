@@ -181,7 +181,7 @@ class ChangePasswordTest(TestCase):
         response = self.client.post(path='/account/password/change/',
                                     data={'old_password': 'wrong password', 'password': 'salam', 'type': 'PUT',
                                           'confirm_password': 'salam', 'username': 'testuser'})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
 
     def test_change_password(self):
         self.client.login(username='testuser', password='majid123')
