@@ -1,5 +1,15 @@
 {% extends 'base.html' %}
 
+{% block extra_header %}
+    {% if unread_mails %}
+        <style>
+            #inbox-icon {
+                background-color: red;
+            }
+        </style>
+    {% endif %}
+{% endblock %}
+
 {% block body %}
     <h1>This Is Home Page</h1>
 {% endblock %}

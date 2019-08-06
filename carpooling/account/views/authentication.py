@@ -6,10 +6,8 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import logout as logout_user, authenticate
 from django.contrib.auth import login as login_user
-from account.forms import  LoginForm, SignupForm
+from account.forms import LoginForm, SignupForm
 from account.models import Member
-
-
 
 
 class AuthenticationHandler:
@@ -64,4 +62,3 @@ class AuthenticationHandler:
             return redirect(reverse('root:home'))
         else:
             return HttpResponseBadRequest("Bad Request")
-

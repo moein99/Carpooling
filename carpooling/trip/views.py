@@ -40,10 +40,10 @@ class TripHandler:
         return HttpResponseBadRequest('Invalid Request')
 
     @staticmethod
-    def create_trip(car_provider, post_date):
-        source = Point(float(post_date['source_lat']), float(post_date['source_lng']))
-        destination = Point(float(post_date['destination_lat']), float(post_date['destination_lng']))
-        trip_form = TripForm(data=post_date)
+    def create_trip(car_provider, post_data):
+        source = Point(float(post_data['source_lat']), float(post_data['source_lng']))
+        destination = Point(float(post_data['destination_lat']), float(post_data['destination_lng']))
+        trip_form = TripForm(data=post_data)
         if trip_form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
             trip_obj = trip_form.save(commit=False)
             trip_obj.car_provider = car_provider
