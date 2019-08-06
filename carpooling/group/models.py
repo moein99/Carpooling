@@ -14,6 +14,8 @@ class Group(models.Model):
 
 
 class Membership(models.Model):
+    OWNER = 'ow'
+    MEMBER = 'me'
     ROLES = [
         ('ow', 'owner'),
         ('me', 'member'),
