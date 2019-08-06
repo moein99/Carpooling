@@ -13,7 +13,7 @@
         <i class="car icon"></i>
         My Trips
     </a>
-    <a  href="{% url 'account:user_profile' %}" class="right floated item" id="menu_item">
+    <a  href="{% url 'account:user_profile' request.user.id %}" class="right floated item" id="menu_item">
         <i class="user icon"></i>
         Profile
     </a>

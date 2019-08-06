@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth import authenticate
 
 from account.models import Member
 
@@ -35,10 +36,15 @@ class SignupForm(forms.ModelForm):
 
     class Meta:
         model = Member
-        fields = ('username', 'email', 'password', 'confirm_password')
+        fields = (
+            'username', 'email', 'password', 'confirm_password', 'first_name', 'last_name', 'phone_number', 'gender')
         help_texts = {
             'username': None,
         }
+
+    def __init__(self, *args, **kwargs):
+        super(SignupForm, self).__init__(*args, **kwargs)
+        self.fields['gender'].required = False
 
     def clean(self):
         cleaned_data = super(SignupForm, self).clean()
@@ -74,3 +80,37 @@ def check_username_validity(username):
         raise forms.ValidationError(
             "username length should be in range 5 to 30 characters"
         )
+
+
+class EditProfileForm(forms.ModelForm):
+    class Meta:
+        model = Member
+        fields = ['first_name', 'last_name', 'phone_number', 'bio', 'profile_picture']
+
+    def __init__(self, *args, **kwargs):
+        super(EditProfileForm, self).__init__(*args, **kwargs)
+        self.fields['bio'].required = False
+
+
+class ChangePasswordForm(forms.Form):
+    old_password = forms.CharField(max_length=128, widget=forms.PasswordInput())
+    password = forms.CharField(max_length=128, widget=forms.PasswordInput())
+    confirm_password = forms.CharField(max_length=128, widget=forms.PasswordInput())
+
+    class Meta:
+        fields = ['username', 'old_password', 'password', 'confirm_password']
+
+    def __init__(self, user, *args, **kwargs):
+        super(ChangePasswordForm, self).__init__(*args, **kwargs)
+        self.user = user
+
+    def clean(self):
+        cleaned_data = super(ChangePasswordForm, self).clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+        old_password = cleaned_data.get('old_password')
+        if password != confirm_password:
+            raise forms.ValidationError('password and confirm_password does not match')
+        if not self.user.check_password(old_password):
+            raise forms.ValidationError('Wrong password')
+        return cleaned_data
