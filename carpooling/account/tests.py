@@ -213,9 +213,7 @@ class InboxTest(TestCase):
     def test_sending_mail(self):
         self.login_user('moein', '1234')
         mail_data = {'message': "hi moein1", 'to': 'moein1'}
-        response = self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context['user'].is_active)
+        self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
         receiver = Member.objects.get(username='moein1')
         mail_text = Mail.objects.filter(receiver=receiver)[0].message
         self.assertEqual(mail_text, "hi moein1")
@@ -223,7 +221,6 @@ class InboxTest(TestCase):
     def test_sending_mail_without_login(self):
         mail_data = {'message': "hi moein1", 'to': 'moein1'}
         response = self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
-        self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['user'].is_active)
 
     def signup_user(self, post_data):
