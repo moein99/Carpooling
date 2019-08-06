@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect
 
 from account.forms import MailForm
 from account.models import Member
-from .views import is_user_exists
+from account.views import is_user_exists
 
 
 class InboxHandler:

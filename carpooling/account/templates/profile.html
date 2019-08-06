@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}
+    profile | {{ member.username }}
+{% endblock %}
+{% block body %}
+    <div name = "username">
+        <p>
+            <bold>{{ member.username}}</bold>
+        </p>
+    </div>
+    {% if member.profile_picture %}
+    <img src="{{ member.profile_picture.url }}" width="300">
+    {% endif %}
+    <p>
+        firstname : {{ member.first_name }} , lastname : {{ member.last_name }}
+        <br>
+        {% if member.bio %}
+            <p>
+                bio : <br>
+                {{ member.bio }}
+            </p>
+        {% endif %}
+    </p>
+    {% if status == "MEMBER_PROFILE" %}
+        <a href="{% url 'account:report_member' member.id %}">
+            Report this user
+        </a>
+        {% endif %}
+    {% if  status != "ANONYMOUS_PROFILE" %}
+        <p>
+            Phone number : {{ member.phone_number }}
+            {% if member.gender != None %}
+                <br>
+                gender : {{ member.get_gender_display }}
+            {% endif %}
+        </p>
+    {% endif %}
+    {% if status == "OWNED_PROFILE" %}
+        <a href="{% url 'account:change_password' %}">
+            change password
+        </a>
+        <br>
+        <a href="{% url 'account:edit' %}">
+            edit your profile
+        </a>
+    {% endif %}
+{% endblock %}
