@@ -1,3 +1,4 @@
+from django.utils.timezone import now
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import render, redirect
@@ -47,8 +48,14 @@ class UserProfileHandler:
     @staticmethod
     def show_member_profile(request, user_id):
         user_data = Member.objects.get(id=user_id)
+        reported = False
+        report = Report.objects.filter(reported_id=user_id, reporter_id=request.user.id)
+        if len(report):
+            days = abs((now() - report[0].date).days)
+            if days < 10:
+                reported = True
         return render(request, "profile.html",
-                      {"status": UserProfileHandler.MEMBER_PROFILE_STATUS, "member": user_data})
+                      {"status": UserProfileHandler.MEMBER_PROFILE_STATUS, "member": user_data, 'reported': reported})
 
     @staticmethod
     @login_required
