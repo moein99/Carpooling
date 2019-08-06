@@ -3,7 +3,8 @@ import redis
 from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.db.models import Q
-from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, HttpResponseForbidden
+from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse, HttpResponseForbidden, \
+    HttpResponseNotAllowed
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from account.forms import ForgotPasswordForm, ResetPasswordForm, ChangePasswordForm
@@ -103,13 +104,14 @@ class PasswordHandler:
     @login_required
     def handle_change_password(request):
         if request.method == "GET":
-            return render(request, 'reset_password.html',
+            return render(request, 'change_password.html',
                           {'form': ChangePasswordForm(initial={'username': request.user.username})})
         else:
-            type = request.POST.get('type')
-            if type == "PUT":
-                PasswordHandler.change_password(request)
-
+            request_type = request.POST.get('type')
+            if request_type == "PUT":
+                return PasswordHandler.change_password(request)
+            else:
+                return HttpResponseNotAllowed("not allowed")
 
     @staticmethod
     def change_password(request):
@@ -118,7 +120,6 @@ class PasswordHandler:
             user = Member.objects.get(id=request.user.id)
             user.set_password(form.clean().get('password'))
             user.save()
-            return redirect(reverse('account:user_profile'))
-
-
-
+            return redirect(reverse('account:login'))
+        else:
+            return HttpResponseBadRequest()
