@@ -6,7 +6,7 @@ from model_mommy import mommy
 from django.urls import reverse
 
 from account.forms import SignupForm
-from account.models import Member
+from account.models import Member, Mail
 
 
 class LoginTest(TestCase):
@@ -199,3 +199,36 @@ class ChangePasswordTest(TestCase):
                                     data={'old_password': 'majid123', 'password': 'salam',
                                           'confirm_password': 'salam', 'username': 'testuser'})
         self.assertEqual(response.status_code, 405)
+
+
+class InboxTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        post_data = {"username": "moein", "password": "1234", 'email': "somemail@gmail.com", 'confirm_password': '1234',
+                     'first_name': "my name", 'last_name': 'mylastname', 'phone_number': '09123456789'}
+        self.signup_user(post_data)
+        post_data['username'] = "moein1"
+        self.signup_user(post_data)
+
+    def test_sending_mail(self):
+        self.login_user('moein', '1234')
+        mail_data = {'message': "hi moein1", 'to': 'moein1'}
+        response = self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['user'].is_active)
+        receiver = Member.objects.get(username='moein1')
+        mail_text = Mail.objects.filter(receiver=receiver)[0].message
+        self.assertEqual(mail_text, "hi moein1")
+
+    def test_sending_mail_without_login(self):
+        mail_data = {'message': "hi moein1", 'to': 'moein1'}
+        response = self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['user'].is_active)
+
+    def signup_user(self, post_data):
+        self.client.post(reverse('account:signup'), post_data)
+
+    def login_user(self, username, password):
+        post_data = {'username': username, 'password': password}
+        self.client.post(reverse('account:login'), post_data, follow=True)

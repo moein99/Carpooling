@@ -69,17 +69,17 @@ class LoginForm(forms.ModelForm):
 
 
 class MailForm(forms.ModelForm):
-    receiver_username = forms.CharField(max_length=30)
+    to = forms.CharField(max_length=30)
 
     class Meta:
-        fields = ('text', 'receiver', 'sender', 'sent_time', 'receiver_username')
+        fields = ('message', 'receiver', 'sender', 'sent_time', 'to', 'is_mail_seen')
         model = Mail
 
-        exclude = ('sender', 'sent_time', 'receiver')
+        exclude = ('sender', 'sent_time', 'receiver', 'is_mail_seen')
 
     def clean(self):
         cleaned_data = super(MailForm, self).clean()
-        check_username_validity(cleaned_data.get('receiver_username'))
+        check_username_validity(cleaned_data.get('to'))
         return cleaned_data
 
 
