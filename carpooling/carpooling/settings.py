@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'account.apps.AccountConfig',
     'group.apps.GroupConfig',
     'trip.apps.TripConfig',
+    'semanticuiforms',
 ]
 
 MIDDLEWARE = [

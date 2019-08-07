@@ -3,9 +3,6 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 
-# Create your models here.
-
-
 class Member(AbstractUser):
     MALE_GENDER = "M"
     FEMALE_GENDER = "F"
@@ -26,3 +23,11 @@ class Report(models.Model):
     description = models.TextField(max_length=300)
     date = models.DateTimeField(auto_now_add=True)
     resolved = models.BooleanField(default=False)
+
+
+class Mail(models.Model):
+    message = models.TextField()
+    sender = models.ForeignKey('Member', on_delete=models.SET_NULL, related_name="outbox", null=True)
+    receiver = models.ForeignKey('Member', on_delete=models.SET_NULL, related_name="inbox", null=True)
+    sent_time = models.DateTimeField(auto_now_add=True)
+    is_mail_seen = models.BooleanField(default=False)

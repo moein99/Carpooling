@@ -5,8 +5,12 @@
             <i class="home icon"></i>
             Home
     </a>
-    <a href="{% url 'account:login' %}" class="item" id="menu_item">
+    <a href="{% url 'account:login' %}" class="right floated item" id="menu_item">
         <i class="sign-in icon"></i>
         Login
+    </a>
+    <a href="{% url 'account:signup' %}" class="item" id="menu_item">
+        <i class="id card icon"></i>
+        Sign Up
     </a>
 {% endblock %}
