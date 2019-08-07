@@ -6,11 +6,8 @@ from model_mommy import mommy
 from django.urls import reverse
 
 from account.forms import SignupForm
-<<<<<<< HEAD
-from account.models import Member, Report
-=======
-from account.models import Member, Mail
->>>>>>> a0e5f4991d4821b8d2d8c6ff4660f54296aa131f
+from account.models import Member, Report, Mail
+
 
 
 class LoginTest(TestCase):
