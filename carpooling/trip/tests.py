@@ -250,3 +250,20 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
         user = self.mohsen
         self.assertEqual(list((user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
             is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)), list(trips))
+
+#
+# class SearchTripTest(TestCase):
+#     def setUp(self):
+#         self.temp_acount = Member.objects.create(username="testuser", first_name="javad")
+#         self.temp_acount.set_password('majid123')
+#         self.temp_acount.save()
+#
+#     def test_anonymous(self):
+#         response = self.client.get(path=reverse('trip:search-trip'))
+#         self.assertEqual(response.status_code, 302)
+#
+#     def test_search_login(self):
+#         self.client.login(username='testuser', password='majid123')
+#         response = self.client.get(reverse('trip:search-trip'))
+#         self.assertEqual(response.status_code, 200)
+

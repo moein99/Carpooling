@@ -12,5 +12,6 @@ urlpatterns = [
     path('group/', TripHandler.handle_categorized_trips, name='categorized-trips'),
     path('group/<int:group_id>/', TripHandler.handle_group_trips, name='group-trip'),
     path('active/', TripHandler.handle_active_trips, name='active-trips'),
-    path('all/', TripHandler.handle_available_trips, name='available-trips')
+    path('all/', TripHandler.handle_available_trips, name='available-trips'),
+    path('search/', TripHandler.handle_search_trip, name='search-trip'),
 ]
