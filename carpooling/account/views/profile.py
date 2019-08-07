@@ -48,14 +48,19 @@ class UserProfileHandler:
     @staticmethod
     def show_member_profile(request, user_id):
         user_data = Member.objects.get(id=user_id)
-        reported = False
+        reported = UserProfileHandler.is_reported(request, user_id)
+
+        return render(request, "profile.html",
+                      {"status": UserProfileHandler.MEMBER_PROFILE_STATUS, "member": user_data, 'reported': reported})
+
+    @staticmethod
+    def is_reported(request, user_id):
         report = Report.objects.filter(reported_id=user_id, reporter_id=request.user.id)
         if len(report):
             days = abs((now() - report[0].date).days)
             if days < 10:
-                reported = True
-        return render(request, "profile.html",
-                      {"status": UserProfileHandler.MEMBER_PROFILE_STATUS, "member": user_data, 'reported': reported})
+                return True
+        return False
 
     @staticmethod
     @login_required
