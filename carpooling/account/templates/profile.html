@@ -22,10 +22,14 @@
         {% endif %}
     </p>
     {% if status == "MEMBER_PROFILE" %}
-        <a href="{% url 'account:report_member' member.id %}">
-            Report this user
-        </a>
+        {% if reported %}
+            you have reported this member
+        {% else %}
+            <a href="{% url 'account:report_member' member.id %}">
+                Report this user
+            </a>
         {% endif %}
+    {% endif %}
     {% if  status != "ANONYMOUS_PROFILE" %}
         <p>
             Phone number : {{ member.phone_number }}

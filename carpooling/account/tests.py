@@ -6,7 +6,7 @@ from model_mommy import mommy
 from django.urls import reverse
 
 from account.forms import SignupForm
-from account.models import Member, Mail
+from account.models import Member, Report, Mail
 
 
 class LoginTest(TestCase):
@@ -112,19 +112,19 @@ class MemberProfileTest(TestCase):
 
     def test_anonymous(self):
         member = mommy.make(Member)
-        response = self.client.get(path='/account/profile/{}/'.format(member.id))
+        response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id': member.id}))
         self.assertEqual(response.status_code, 200)
 
     def test_other_members(self):
         self.client.login(username='testuser', password='majid123')
         member = mommy.make(Member)
-        response = self.client.get(path='/account/profile/{}/'.format(member.id))
+        response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id': member.id}))
         self.assertEqual(response.status_code, 200)
 
     def test_my_profile(self):
         self.client.login(username='testuser', password='majid123')
         user = Member.objects.get(username='testuser')
-        response = self.client.get(path='/account/profile/{}/'.format(user.id))
+        response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id': user.id}))
         self.assertEqual(response.status_code, 200)
 
     def test_post_request(self):
@@ -140,28 +140,37 @@ class EditProfileTest(TestCase):
         self.temp_acount.save()
 
     def test_anonymous(self):
-        response = self.client.get(path='/account/profile/edit/')
+        response = self.client.get(path=reverse('account:edit'))
         self.assertEqual(response.status_code, 302)
 
     def test_edit_profile_get_request(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.get(path='/account/profile/edit/')
+        response = self.client.get(path=reverse('account:edit'))
         self.assertEqual(response.status_code, 200)
 
     def test_edit_profile(self):
         img = BytesIO(b'mybinarydata')
         img.name = 'myimage.jpg'
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path='/account/profile/edit/',
+        response = self.client.post(path=reverse('account:edit'),
                                     data={'first_name': 'sepehr', 'phone_number': '09123456789', 'last_name': 'spaner',
                                           'profile_picture': img, 'type': 'PUT'})
         self.assertEqual(response.status_code, 302)
         user = Member.objects.get(username='testuser')
         self.assertEqual('sepehr', user.first_name)
 
+    def test_edit_profile_no_image(self):
+        self.client.login(username='testuser', password='majid123')
+        response = self.client.post(path=reverse('account:edit'),
+                                    data={'first_name': 'sepehr', 'phone_number': '09123456789', 'last_name': 'spaner',
+                                          'profile_picture': '', 'type': 'PUT'})
+        self.assertEqual(response.status_code, 302)
+        user = Member.objects.get(username='testuser')
+        self.assertEqual('sepehr', user.first_name)
+
     def test_edit_profile_not_put_request(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path='/account/profile/edit/',
+        response = self.client.post(path=reverse('account:edit'),
                                     data={'first_name': 'sepehr', 'phone_number': '09123456789', 'last_name': 'spaner'})
         self.assertEqual(response.status_code, 405)
 
@@ -173,19 +182,19 @@ class ChangePasswordTest(TestCase):
         self.temp_acount.save()
 
     def test_anonymous(self):
-        response = self.client.get(path='/account/password/change/')
+        response = self.client.get(path=reverse('account:change_password'))
         self.assertEqual(response.status_code, 302)
 
     def test_wrong_change_password(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path='/account/password/change/',
+        response = self.client.post(path=reverse('account:change_password'),
                                     data={'old_password': 'wrong password', 'password': 'salam', 'type': 'PUT',
                                           'confirm_password': 'salam', 'username': 'testuser'})
         self.assertEqual(response.status_code, 200)
 
     def test_change_password(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path='/account/password/change/',
+        response = self.client.post(path=reverse('account:change_password'),
                                     data={'old_password': 'majid123', 'password': 'salam', 'type': 'PUT',
                                           'confirm_password': 'salam', 'username': 'testuser'})
         self.assertEqual(response.status_code, 302)
@@ -195,10 +204,39 @@ class ChangePasswordTest(TestCase):
 
     def test_change_password_wrong_request_type(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path='/account/password/change/',
+        response = self.client.post(path=reverse('account:change_password'),
                                     data={'old_password': 'majid123', 'password': 'salam',
                                           'confirm_password': 'salam', 'username': 'testuser'})
         self.assertEqual(response.status_code, 405)
+
+
+class ReportTest(TestCase):
+    def setUp(self):
+        self.temp_acount = Member.objects.create(username="testuser", first_name="javad")
+        self.temp_acount.set_password('majid123')
+        self.temp_acount.save()
+
+    def test_reporting(self):
+        self.client.login(username='testuser', password='majid123')
+        member = mommy.make(Member)
+        response = self.client.post(path=reverse('account:report_member', kwargs={'user_id': member.id}),
+                                    data={'description': 'he is a bad guy'})
+        self.assertEqual(response.status_code, 302)
+        test_report = Report.objects.filter(reported_id=member.id)
+        self.assertEqual(1, len(test_report))
+
+    def test_reporting_anonymus(self):
+        member = mommy.make(Member)
+        response = self.client.post(path=reverse('account:report_member', kwargs={'user_id': member.id}),
+                                    data={'description': 'he is a bad guy'})
+        self.assertEqual(response.status_code, 302)
+
+    def test_reporting_self(self):
+        self.client.login(username='testuser', password='majid123')
+        member = Member.objects.get(username='testuser')
+        response = self.client.post(path=reverse('account:report_member', kwargs={'user_id': member.id}),
+                                    data={'description': 'he is a bad guy'})
+        self.assertEqual(response.status_code, 403)
 
 
 class InboxTest(TestCase):

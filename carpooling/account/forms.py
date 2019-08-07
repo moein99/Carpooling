@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib.auth import authenticate
-
-from account.models import Member, Mail
+from account.models import Member, Report, Mail
 
 
 class ForgotPasswordForm(forms.Form):
@@ -105,6 +104,7 @@ class EditProfileForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(EditProfileForm, self).__init__(*args, **kwargs)
         self.fields['bio'].required = False
+        self.fields['profile_picture'].required = False
 
 
 class ChangePasswordForm(forms.Form):
@@ -129,3 +129,9 @@ class ChangePasswordForm(forms.Form):
         if not self.user.check_password(old_password):
             raise forms.ValidationError('Wrong password')
         return cleaned_data
+
+
+class ReportForm(forms.ModelForm):
+    class Meta:
+        model = Report
+        fields = ['description']
