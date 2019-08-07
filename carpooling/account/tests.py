@@ -6,7 +6,7 @@ from model_mommy import mommy
 from django.urls import reverse
 
 from account.forms import SignupForm
-from account.models import Member
+from account.models import Member, Report
 
 
 class LoginTest(TestCase):
@@ -159,6 +159,15 @@ class EditProfileTest(TestCase):
         user = Member.objects.get(username='testuser')
         self.assertEqual('sepehr', user.first_name)
 
+    def test_edit_profile_no_image(self):
+        self.client.login(username='testuser', password='majid123')
+        response = self.client.post(path='/account/profile/edit/',
+                                    data={'first_name': 'sepehr', 'phone_number': '09123456789', 'last_name': 'spaner',
+                                          'profile_picture': '', 'type': 'PUT'})
+        self.assertEqual(response.status_code, 302)
+        user = Member.objects.get(username='testuser')
+        self.assertEqual('sepehr', user.first_name)
+
     def test_edit_profile_not_put_request(self):
         self.client.login(username='testuser', password='majid123')
         response = self.client.post(path='/account/profile/edit/',
@@ -199,3 +208,32 @@ class ChangePasswordTest(TestCase):
                                     data={'old_password': 'majid123', 'password': 'salam',
                                           'confirm_password': 'salam', 'username': 'testuser'})
         self.assertEqual(response.status_code, 405)
+
+
+class ReportTest(TestCase):
+    def setUp(self):
+        self.temp_acount = Member.objects.create(username="testuser", first_name="javad")
+        self.temp_acount.set_password('majid123')
+        self.temp_acount.save()
+
+    def test_reporting(self):
+        self.client.login(username='testuser', password='majid123')
+        member = mommy.make(Member)
+        response = self.client.post(path='/account/profile/{}/report/'.format(member.id),
+                                    data={'description': 'he is a bad guy'})
+        self.assertEqual(response.status_code, 302)
+        test_report = Report.objects.filter(reported_id=member.id)
+        self.assertEqual(1, len(test_report))
+
+    def test_reporting_anonymus(self):
+        member = mommy.make(Member)
+        response = self.client.post(path='/account/profile/{}/report/'.format(member.id),
+                                    data={'description': 'he is a bad guy'})
+        self.assertEqual(response.status_code, 302)
+
+    def test_reporting_self(self):
+        self.client.login(username='testuser', password='majid123')
+        member = Member.objects.get(username='testuser')
+        response = self.client.post(path='/account/profile/{}/report/'.format(member.id),
+                                    data={'description': 'he is a bad guy'})
+        self.assertEqual(response.status_code, 403)

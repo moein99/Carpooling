@@ -90,6 +90,7 @@ class EditProfileForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(EditProfileForm, self).__init__(*args, **kwargs)
         self.fields['bio'].required = False
+        self.fields['profile_picture'].required = False
 
 
 class ChangePasswordForm(forms.Form):

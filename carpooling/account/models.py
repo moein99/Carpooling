@@ -25,3 +25,4 @@ class Report(models.Model):
     reporter = models.ForeignKey('Member', null=True, on_delete=models.SET_NULL, related_name='reporter')
     description = models.TextField(max_length=300)
     date = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)

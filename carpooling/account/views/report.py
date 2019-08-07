@@ -27,6 +27,6 @@ class ReportHandler:
             instance.reporter_id = request.user.id
             instance.reported_id = user_id
             instance.save()
-            return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
+            return redirect(reverse('account:user_profile', kwargs={'user_id': user_id}))
         else:
             return render(request, "report.html", {"form": form})
