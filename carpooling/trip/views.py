@@ -1,16 +1,17 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.db.transaction import atomic
 from django.http import HttpResponseNotFound, HttpResponseForbidden
 
 from group.models import Group, Membership
 from django.contrib.gis.geos import Point
-from django.http import HttpResponseBadRequest, HttpResponse
+from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from geopy.distance import distance as point_distance
 
 from trip.forms import TripForm, TripRequestForm
-from trip.models import Trip, TripGroups
+from trip.models import Trip, TripGroups, Companionship, TripRequest
 from expiringdict import ExpiringDict
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5*60)
@@ -64,17 +65,28 @@ class TripHandler:
         if request.method == 'GET':
             return TripHandler.do_get_requests(request, trip)
         elif request.method == 'POST':
-            if request.POST['type'] == 'POST':
+            type = request.POST.get('type', 'POST')
+            if type == 'POST':
                 return TripHandler.do_post_requests(request, trip)
-            elif request.POST['type'] == 'PUT':
+            elif type == 'PUT':
                 return TripHandler.do_put_requests(request, trip)
 
     @staticmethod
     def do_get_requests(request, trip):
         if request.user == trip.car_provider:
-            return render(request, 'join_trip.html', {'form': TripRequestForm(data={'type': 'POST'})})
+            return TripHandler.show_trip_requests(request, trip)
         else:
-            return render(request, 'trip_requests.html', {'requests': trip.requests})
+            return render(request, 'join_trip.html', {'form': TripRequestForm(data={'type': 'POST'})})
+
+    @staticmethod
+    def show_trip_requests(request, trip, error=None):
+        trip_members_count = Companionship.objects.filter(trip=trip).count()
+        return render(request, 'trip_requests.html', {
+            'requests': trip.requests.filter(status=TripRequest.PENDING_STATUS),
+            'members_count': trip_members_count,
+            'capacity': trip.capacity,
+            'error': error,
+        })
 
     @staticmethod
     def do_post_requests(request, trip):
@@ -86,7 +98,23 @@ class TripHandler:
     def do_put_requests(request, trip):
         if request.user != trip.car_provider:
             return HttpResponseForbidden()
-        pass
+        try:
+            trip_request_id = int(request.POST.get('request_id'))
+        except (ValueError, TypeError):
+            return HttpResponseBadRequest()
+        return TripHandler.accept_request_if_trip_is_not_full(request, trip, trip_request_id)
+
+    @staticmethod
+    @atomic
+    def accept_request_if_trip_is_not_full(request, trip, trip_request_id):
+        if trip.capacity > Companionship.objects.filter(trip=trip).count():
+            trip_request = get_object_or_404(TripRequest, id=trip_request_id)
+            trip_request.status = TripRequest.ACCEPTED_STATUS
+            trip_request.save()
+            trip_request.containing_set.close()
+            return TripHandler.show_trip_requests(request, trip)
+        else:
+            return TripHandler.show_trip_requests(request, trip, "trip is full")
 
     @staticmethod
     @login_required

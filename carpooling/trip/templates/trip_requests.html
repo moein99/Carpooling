@@ -1,5 +1,47 @@
 {% extends 'base.html' %}
 
 {% block body %}
+    {% if error is not None %}
+        <p> error: {{ error }}</p>
+    {% endif %}
+    <ul id="requests-list"></ul>
 
+    <script>
+        let requests_container = document.getElementById('requests-list');
+        let type_is_put = document.createElement('input');
+        type_is_put.setAttribute('type', 'hidden');
+        type_is_put.setAttribute('name', 'type');
+        type_is_put.setAttribute('value', 'PUT');
+        let submit_input = document.createElement('input');
+        submit_input.setAttribute('type', 'submit');
+        submit_input.setAttribute('value', 'Accept');
+        let csrf_input = new DOMParser().parseFromString('{% csrf_token %}', 'text/html').getElementsByTagName('input')[0]
+        {% for request in requests %}
+            let list_item = document.createElement('li');
+            let form = document.createElement('form');
+            form.setAttribute('method', 'POST');
+            form.appendChild(csrf_input);
+            form.appendChild(type_is_put);
+            let div = document.createElement('div');
+            let source_p = document.createElement('p');
+            let destination_p = document.createElement('p');
+            let applicant_a = document.createElement('a');
+            source_p.appendChild(document.createTextNode('{{ request.source }}'));
+            destination_p.appendChild(document.createTextNode('{{ request.destination }}'));
+            applicant_a.setAttribute('href', 'localhost:8000/account/profile/{{ request.containing_set.applicant.id }}');
+            applicant_a.appendChild(document.createTextNode('{{ request.containing_set.applicant.username }}'));
+            let input = document.createElement('input');
+            input.setAttribute('type', 'hidden');
+            input.setAttribute('name', 'request_id');
+            input.setAttribute('value', {{ request.id }});
+            div.appendChild(source_p);
+            div.appendChild(destination_p);
+            div.appendChild(applicant_a);
+            div.appendChild(input);
+            form.appendChild(div);
+            form.appendChild(submit_input);
+            list_item.appendChild(form);
+            requests_container.appendChild(list_item);
+        {% endfor %}
+    </script>
 {% endblock %}

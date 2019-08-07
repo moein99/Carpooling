@@ -3,7 +3,6 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 
-# Create your models here.
 class Member(AbstractUser):
     MALE_GENDER = "M"
     FEMALE_GENDER = "F"
@@ -16,8 +15,3 @@ class Member(AbstractUser):
     phone_number = models.CharField(max_length=11,
                                     validators=[RegexValidator(regex=r'^\d{11}$')])
     gender = models.CharField(max_length=1, choices=GENDERS, null=True)
-
-
-class TripRequestSet(models.Model):
-    title = models.CharField(max_length=50, null=True)
-    applicant = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='trip_request_sets')

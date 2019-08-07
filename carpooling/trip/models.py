@@ -1,10 +1,9 @@
-from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator
 from django.db import models
 from django.contrib.gis.db import models as gis_models
+from django.db.models import Q
 
-# Create your models here.
-from account.models import Member, TripRequestSet
+from account.models import Member
 from group.models import Group
 
 
@@ -44,9 +43,30 @@ class TripGroups(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
 
 
+class TripRequestSet(models.Model):
+    title = models.CharField(max_length=50, null=True)
+    applicant = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='trip_request_sets')
+    closed = models.BooleanField(default=False)
+
+    def close(self):
+        self.requests.filter(~Q(status=TripRequest.ACCEPTED_STATUS)).update(status=TripRequest.CANCELED_STATUS)
+        self.closed = True
+
+
 class TripRequest(models.Model):
+    PENDING_STATUS = 'p'
+    ACCEPTED_STATUS = 'a'
+    CANCELED_STATUS = 'c'
+    DECLINED_STATUS = 'd'
+
+    STATUS_CHOICES = [
+        (PENDING_STATUS, 'pending'),
+        (ACCEPTED_STATUS, 'accepted'),
+        (CANCELED_STATUS, 'canceled'),
+        (DECLINED_STATUS, 'declined')
+    ]
     containing_set = models.ForeignKey(TripRequestSet, on_delete=models.CASCADE, related_name='requests')
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='requests')
     source = gis_models.PointField()
     destination = gis_models.PointField()
-
+    status = models.CharField(max_length=2, choices=STATUS_CHOICES, default=PENDING_STATUS)
