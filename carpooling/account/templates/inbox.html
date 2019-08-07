@@ -44,26 +44,8 @@
             </div>
         </div>
         <div id="mail_sender" class="four wide column">
-{#            <form method="POST">#}
-{#                {% csrf_token %}#}
-{#                {{ mail_form.as_p }}#}
-{#                <input type="submit" value="Send">#}
-{#            </form>#}
-
-{#            <div class="ui form">#}
-{#                <div class="field">#}
-{#                    <label>Message</label>#}
-{#                    <textarea></textarea>#}
-{#                </div>#}
-{#                <div class="field">#}
-{#                    <label>To:</label>#}
-{#                    <input type="text" placeholder="Username">#}
-{#                </div>#}
-{#                <div class="ui red button">Send Mail</div>#}
-{#            </div>#}
             <form class="ui form" role="form" method="post">
                 {% csrf_token %}
-{#                {% render_form mail_form %}#}
                 {% render_field mail_form.message placeholder='type a message ...' _no_required='true'  %}
                 {% render_field mail_form.to placeholder='enter a username ...' _no_required='true' %}
                 <button type="submit" class="ui red button">Send Message</button>
