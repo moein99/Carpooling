@@ -6,7 +6,7 @@ from model_mommy import mommy
 from django.urls import reverse
 
 from account.forms import SignupForm
-from account.models import Member, Report, Mail
+from account.models import Member, Report, Mail, Comment
 
 
 class LoginTest(TestCase):
@@ -129,8 +129,8 @@ class MemberProfileTest(TestCase):
 
     def test_post_request(self):
         member = mommy.make(Member)
-        response = self.client.post(path='/account/profile/{}/'.format(member.id))
-        self.assertEqual(response.status_code, 405)
+        response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id': member.id}))
+        self.assertEqual(response.status_code, 400)
 
 
 class EditProfileTest(TestCase):
@@ -244,14 +244,14 @@ class InboxTest(TestCase):
         self.client = Client()
         post_data = {"username": "moein", "password": "1234", 'email': "somemail@gmail.com", 'confirm_password': '1234',
                      'first_name': "my name", 'last_name': 'mylastname', 'phone_number': '09123456789'}
-        self.signup_user(post_data)
+        Utils.signup_user(self.client, post_data)
         post_data['username'] = "moein1"
-        self.signup_user(post_data)
+        Utils.signup_user(self.client, post_data)
 
     def test_sending_mail(self):
-        self.login_user('moein', '1234')
+        Utils.login_user(self.client, 'moein', '1234')
         mail_data = {'message': "hi moein1", 'to': 'moein1'}
-        self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
+        self.clien405t.post(reverse('account:user-inbox'), mail_data, follow=True)
         receiver = Member.objects.get(username='moein1')
         mail_text = Mail.objects.filter(receiver=receiver)[0].message
         self.assertEqual(mail_text, "hi moein1")
@@ -261,9 +261,32 @@ class InboxTest(TestCase):
         response = self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
         self.assertFalse(response.context['user'].is_active)
 
-    def signup_user(self, post_data):
-        self.client.post(reverse('account:signup'), post_data)
 
-    def login_user(self, username, password):
+class CommentTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        post_data = {"username": "moein", "password": "1234", 'email': "somemail@gmail.com", 'confirm_password': '1234',
+                     'first_name': "my name", 'last_name': 'mylastname', 'phone_number': '09123456789'}
+        Utils.signup_user(self.client, post_data)
+        post_data['username'] = "moein1"
+        Utils.signup_user(self.client, post_data)
+
+    def test_comment(self):
+        Utils.login_user(self.client, 'moein', '1234')
+        comment_data = {'message': 'hi moein'}
+        receiver = Member.objects.get(username='moein1')
+        self.client.post(reverse('account:user_profile', kwargs={'user_id': receiver.id}),
+                         comment_data,
+                         follow=True)
+        self.assertEqual(Comment.objects.filter(receiver_id=receiver.id)[0].message, 'hi moein')
+
+
+class Utils:
+    @staticmethod
+    def login_user(client, username, password):
         post_data = {'username': username, 'password': password}
-        self.client.post(reverse('account:login'), post_data, follow=True)
+        return client.post(reverse('account:login'), post_data, follow=True)
+
+    @staticmethod
+    def signup_user(client, post_data):
+        return client.post(reverse('account:signup'), post_data)

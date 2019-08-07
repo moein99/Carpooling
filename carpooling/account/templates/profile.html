@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load semanticui %}
 {% block title %}
     profile | {{ member.username }}
 {% endblock %}
@@ -12,58 +12,90 @@
             margin: 0;
             position: absolute;
         }
+        #profile-box {
+            margin-right: 1em;
+            background-color: white;
+            box-shadow: 0.25em 0.25em 0.25em grey
+        }
+        #comment-box {
+            margin-left: 1em;
+            background-color: white;
+            box-shadow: 0.25em 0.25em 0.25em grey;
+            height: 22em;
+        }
     </style>
 {% endblock %}
 
 {% block body %}
-    <div class="ui centered grid">
-        <div class="twelve wide column" style="margin-top: 5em">
-            <div class="ui segment">
-                <div class="iconBackground">
-                    <h2 class="ui center aligned icon header" style="margin-top: 2em">
-                      {{ member.first_name }} {{ member.last_name }}
-                    </h2>
-                    {% if status == "MEMBER_PROFILE" %}
-                        {% if reported %}
-                            you have reported this member
-                        {% else %}
-                            <a href="{% url 'account:report_member' member.id %}" style="float: right">
-                                Report this user
-                            </a>
-                        {% endif %}
-
-                    {% endif %}
-                </div>
-                <div >
-                    {% if member.profile_picture %}
-                        <img class="ui avatar medium circular image" src="{{ member.profile_picture.url }}" alt="prof">
+    <div class="ui centered grid" style="margin-top: 5em">
+        <div id="profile-box" class="eight wide column">
+            <div class="iconBackground">
+                <h2 class="ui center aligned icon header" style="margin-top: 2em">
+                  {{ member.first_name }} {{ member.last_name }}
+                </h2>
+                {% if status == "MEMBER_PROFILE" %}
+                    {% if reported %}
+                        you have reported this member
                     {% else %}
-                        <img class="ui avatar medium circular image" src="../../static/images/user_default_image.png" alt="prof">
+                        <a href="{% url 'account:report_member' member.id %}" style="float: right">
+                            Report this user
+                        </a>
                     {% endif %}
-                </div>
-                <div class="ui divider"></div>
-                <div class="content">
-                    <h3 class="header">Biography:</h3>
-                    <div class="description" style="margin-left: 2em">
-                        <p>{{ member.bio }}</p>
-                    </div>
-                    {% if  status != "ANONYMOUS_PROFILE" %}
-                        <h4 class="header">Phone Number: {{ member.phone_number }}</h4>
-                        {% if member.gender != None %}
-                            <h4 class="header">Gender: {{ member.get_gender_display }}</h4>
-                        {% endif %}
-                    {% endif %}
-                        {% if status == "OWNED_PROFILE" %}
-                            <a href="{% url 'account:change_password' %}">
-                                Change Password
-                            </a>
-                            <br>
-                            <a href="{% url 'account:edit' %}">
-                                Edit your profile
-                            </a>
-                        {% endif %}
-                </div>
+
+                {% endif %}
             </div>
+            <div >
+                {% if member.profile_picture %}
+                    <img class="ui avatar medium circular image" src="{{ member.profile_picture.url }}" alt="prof">
+                {% else %}
+                    <img class="ui avatar medium circular image" src="../../static/images/user_default_image.png" alt="prof">
+                {% endif %}
+            </div>
+            <div class="ui divider"></div>
+            <div class="content">
+                <h3 class="header">Biography:</h3>
+                <div class="description" style="margin-left: 2em">
+                    <p>{{ member.bio }}</p>
+                </div>
+                {% if  status != "ANONYMOUS_PROFILE" %}
+                    <h4 class="header">Phone Number: {{ member.phone_number }}</h4>
+                    {% if member.gender != None %}
+                        <h4 class="header">Gender: {{ member.get_gender_display }}</h4>
+                    {% endif %}
+                {% endif %}
+                {% if status == "OWNED_PROFILE" %}
+                    <a href="{% url 'account:change_password' %}">
+                        Change Password
+                    </a>
+                    <br>
+                    <a href="{% url 'account:edit' %}">
+                        Edit your profile
+                    </a>
+                {% endif %}
+            </div>
+            <div class="ui divider"></div>
+            {% if status != 'ANONYMOUS_PROFILE' %}
+                <div class="content">
+                    <h3 class="header">Comments:</h3>
+                    <div class="ui list" style="margin-left: 2em; margin-right: 2em">
+                        {% for comment in user_comments %}
+                                <div class="ui segment" style="word-break: break-all">
+                                    <a style="font-size: 1.25em" href="{% url 'account:user_profile' comment.sender.id %}" class="header"><b>{{ comment.sender.username }}: <br><b></b></a>
+                                        {{ comment.message }}
+                                </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
+        {% if status != 'ANONYMOUS_PROFILE' %}
+            <div id="comment-box" class="four wide column">
+                <form class="ui form" role="form" method="post">
+                    {% csrf_token %}
+                    {% render_field comment_form.message placeholder='type a message ...' _no_required='true'  %}
+                    <button type="submit" class="ui red button">Submit Comment</button>
+                </form>
+            </div>
+        {% endif %}
     </div>
 {% endblock %}

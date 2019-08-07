@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import authenticate
-from account.models import Member, Report, Mail
+from account.models import Member, Report, Mail, Comment
 
 
 class ForgotPasswordForm(forms.Form):
@@ -135,3 +135,9 @@ class ReportForm(forms.ModelForm):
     class Meta:
         model = Report
         fields = ['description']
+
+
+class CommentForm(forms.ModelForm):
+    class Meta:
+        model = Comment
+        fields = ['message']
