@@ -18,7 +18,7 @@
             box-shadow: 0.25em 0.25em 0.25em grey
         }
         #comment-box {
-            margin-left: 1em;
+            padding: 1em;
             background-color: white;
             box-shadow: 0.25em 0.25em 0.25em grey;
             height: 22em;
@@ -27,7 +27,7 @@
 {% endblock %}
 
 {% block body %}
-    <div class="ui centered grid" style="margin-top: 5em">
+    <div class="ui centered grid" style="margin-top: 3em">
         <div id="profile-box" class="eight wide column">
             <div class="iconBackground">
                 <h2 class="ui center aligned icon header" style="margin-top: 2em">
@@ -80,7 +80,7 @@
                     <div class="ui list" style="margin-left: 2em; margin-right: 2em">
                         {% for comment in user_comments %}
                                 <div class="ui segment" style="word-break: break-all">
-                                    <a style="font-size: 1.25em" href="{% url 'account:user_profile' comment.sender.id %}" class="header"><b>{{ comment.sender.username }}: <br><b></b></a>
+                                    <a style="font-size: 1.25em" href="{% url 'account:user_profile' comment.sender.id %}" class="header"><b>{{ comment.sender.username }}: <br></a>
                                         {{ comment.message }}
                                 </div>
                         {% endfor %}
@@ -89,8 +89,8 @@
             {% endif %}
         </div>
         {% if status != 'ANONYMOUS_PROFILE' %}
-            <div id="comment-box" class="four wide column">
-                <form class="ui form" role="form" method="post">
+            <div class="four wide column">
+                <form id="comment-box" class="ui form" role="form" method="post">
                     {% csrf_token %}
                     {% render_field comment_form.message placeholder='type a message ...' _no_required='true'  %}
                     <button type="submit" class="ui red button">Submit Comment</button>
