@@ -31,3 +31,11 @@ class Mail(models.Model):
     receiver = models.ForeignKey('Member', on_delete=models.SET_NULL, related_name="inbox", null=True)
     sent_time = models.DateTimeField(auto_now_add=True)
     is_mail_seen = models.BooleanField(default=False)
+
+
+class Comment(models.Model):
+    receiver = models.ForeignKey('Member', on_delete=models.SET_NULL, related_name="received_comments", null=True)
+    sender = models.ForeignKey('Member', on_delete=models.SET_NULL, related_name="sent_comments", null=True)
+    message = models.TextField(max_length=300)
+    sent_time = models.DateTimeField(auto_now_add=True)
+
