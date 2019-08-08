@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.http import HttpResponseNotFound, HttpResponseForbidden
+from django.http import HttpResponseNotFound, HttpResponseForbidden, HttpResponseNotAllowed
 
 from group.models import Group, Membership
 from django.contrib.gis.geos import Point
@@ -11,7 +11,7 @@ from django.urls import reverse
 from geopy.distance import distance as point_distance
 
 from trip.forms import TripForm, TripRequestForm
-from trip.models import Trip, TripGroups, Companionship, TripRequest
+from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
 from expiringdict import ExpiringDict
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5*60)
@@ -56,7 +56,18 @@ class TripHandler:
 
     @staticmethod
     def handle_trip(request, trip_id):
-        raise NotImplementedError()
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.method == 'GET':
+            return TripHandler.do_get_trip(request, trip)
+        else:
+            return HttpResponseNotAllowed(['GET'])
+
+    @staticmethod
+    def do_get_trip(request, trip):
+        if not trip.is_private or Membership.objects.filter(group__in=trip.groups, member=request.user):
+            return render(request, 'trip_info.html', {'trip': trip})
+        else:
+            return HttpResponseForbidden()
 
     @staticmethod
     @login_required
@@ -76,7 +87,7 @@ class TripHandler:
         if request.user == trip.car_provider:
             return TripHandler.show_trip_requests(request, trip)
         else:
-            return render(request, 'join_trip.html', {'form': TripRequestForm(data={'type': 'POST'})})
+            return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
 
     @staticmethod
     def show_trip_requests(request, trip, error=None):
@@ -92,7 +103,34 @@ class TripHandler:
     def do_post_requests(request, trip):
         if request.user == trip.car_provider:
             return HttpResponseForbidden()
-        pass
+        source = TripHandler.extract_source(request.POST)
+        destination = TripHandler.extract_destination(request.POST)
+        form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
+        if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
+            trip_request = TripHandler.create_trip_request(form, source ,destination)
+            # return something
+        else:
+            return render(request, 'join_trip.html', {'form': form})
+
+    @staticmethod
+    def extract_source(post_data):
+        return Point(float(post_data['source_lat']), float(post_data['source_lng']))
+
+    @staticmethod
+    def extract_destination(post_data):
+        return Point(float(post_data['destination_lat']), float(post_data['destination_lng']))
+
+    @staticmethod
+    def create_trip_request(form, source, destination):
+        if form.cleaned_data['create_new_request_set']:
+            request_set = TripRequestSet.objects.create(applicant=form.user, title=form.cleaned_data['title'])
+        else:
+            request_set = form.cleaned_data['containing_set']
+        trip_request = form.save(commit=False)
+        trip_request.source, trip_request.destination = source, destination
+        trip_request.containing_set = request_set
+        trip_request.trip = form.trip
+        return trip_request
 
     @staticmethod
     def do_put_requests(request, trip):

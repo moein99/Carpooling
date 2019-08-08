@@ -1,7 +1,8 @@
+from dateutil.parser import parse
 from django import forms
 
-from trip.models import Trip, TripRequest
-from dateutil.parser import parse
+from account.models import Member
+from trip.models import Trip, TripRequest, TripRequestSet
 
 
 class TripForm(forms.ModelForm):
@@ -52,9 +53,18 @@ class TripForm(forms.ModelForm):
 
 
 class TripRequestForm(forms.ModelForm):
+    user = Member()
     type = forms.CharField(max_length=4, widget=forms.HiddenInput)
-    create_new_request_set = forms.BooleanField(initial=False)
-    request_set_title = forms.CharField(max_length=50, widget=forms.HiddenInput)
+    create_new_request_set = forms.BooleanField(required=False, initial=False)
+    request_set_title = forms.CharField(max_length=50, widget=forms.HiddenInput, required=False)
+    containing_set = forms.ModelChoiceField(
+        required=False, queryset=TripRequestSet.objects.filter(applicant=user, closed=False))
+
+    def __init__(self, user, trip=None, *args, **kwargs):
+        super(TripRequestForm, self).__init__(*args, **kwargs)
+        self.user = user
+        self.trip = trip
+        self.fields['type'].initial = 'POST'
 
     def clean(self):
         if not self.cleaned_data['create_new_request_set'] and self.cleaned_data['containing_set'] is None:
@@ -65,6 +75,5 @@ class TripRequestForm(forms.ModelForm):
 
     class Meta:
         model = TripRequest
-        fields = ['source', 'destination', 'containing_set', 'request_set_title']
-
-
+        fields = ['source', 'destination', 'containing_set', 'create_new_request_set', 'request_set_title']
+        exclude = ('source', 'destination')
