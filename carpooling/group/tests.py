@@ -1,6 +1,7 @@
 from django.test import TestCase
 
 # Create your tests here.
+from django.urls import reverse
 from model_mommy import mommy
 
 from account.models import Member
@@ -160,7 +161,10 @@ class AddMemberToGroupTest(TestCase):
         user = Member.objects.get(username='testuser')
         mommy.make(Membership, group_id=group.id, member_id=user.id, role='ow')
         mommy.make(Membership, group_id=group.id, member_id=member.id, role='me')
-        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id, member.id), data={})
+        response = self.client.post(reverse('group:group_members', kwargs={'group_id': group.id}), data={
+            'type': 'DELETE',
+            'member_id': member.id,
+        })
         test_membership = Membership.objects.filter(group_id=group.id, member_id=member.id)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(0, len(test_membership))
@@ -168,7 +172,10 @@ class AddMemberToGroupTest(TestCase):
     def test_unauthorized_delete_member(self):
         member, group = self.get_objects(True)
         mommy.make(Membership, group_id=group.id, member_id=member.id, role='me')
-        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id, member.id), data={})
+        response = self.client.post(reverse('group:group_members', kwargs={'group_id': group.id}), data={
+            'type': 'DELETE',
+            'member_id': member.id,
+        })
         test_membership = Membership.objects.get(group_id=group.id, member_id=member.id)
         self.assertEqual(response.status_code, 403)
         self.assertIsNotNone(test_membership)
@@ -178,15 +185,13 @@ class AddMemberToGroupTest(TestCase):
         user = Member.objects.get(username='testuser')
         mommy.make(Membership, group_id=group.id, member_id=user.id, role='me')
         mommy.make(Membership, group_id=group.id, member_id=member.id, role='me')
-        response = self.client.post(path='/group/{}/member/remove/{}/'.format(group.id, member.id), data={})
+        response = self.client.post(reverse('group:group_members', kwargs={'group_id': group.id}), data={
+            'type': 'DELETE',
+            'member_id': member.id,
+        })
         test_membership = Membership.objects.filter(group_id=group.id, member_id=member.id)
         self.assertEqual(response.status_code, 403)
         self.assertIsNotNone(test_membership)
-
-    def test_delete_member_get_request(self):
-        member, group = self.get_objects(True)
-        response = self.client.get(path='/group/{}/member/remove/{}/'.format(group.id, member.id))
-        self.assertEqual(response.status_code, 302)
 
     def get_objects(self, is_private):
         self.client.login(username='testuser', password='majid123')

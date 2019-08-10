@@ -8,7 +8,7 @@
         <a href="{% url 'group:groups'%}">back to managing groups</a>
     </div>
     <div>
-        <a href="{% url 'group:group-members' group.id %}">Group members</a>
+        <a href="{% url 'group:group_members' group.id %}">Group members</a>
     </div>
     <div>
     {{ group.code }}: {{ group.title }}: {% if group.is_private %} private {% else %} public {% endif %} {{ group.description }}

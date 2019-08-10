@@ -1,15 +1,13 @@
 from django.urls import path
 
-from group.views import GroupManageSystem
+from group.views import UserGroupsManager, CreateGroupManager, PublicGroupsManager, GroupManager, \
+    GroupMembersManager
 
 app_name = "group"
 urlpatterns = [
-    path('', GroupManageSystem.handle_show_group, name="groups"),
-    path('create/', GroupManageSystem.handle_create_new_group, name="groupcreate"),
-    path('public/', GroupManageSystem.handle_show_public_groups, name="public"),
-    path('<int:group_id>/', GroupManageSystem.handle_manage_group, name="group"),
-    path('<int:group_id>/member/', GroupManageSystem.handle_get_group_members, name="group-members"),
-    path('<int:group_id>/member/remove/<int:member_id>/', GroupManageSystem.handle_remove_group_members, name="remove-member"),
-
-
+    path('', UserGroupsManager.as_view(), name="groups"),
+    path('create/', CreateGroupManager.as_view(), name="create_group"),
+    path('public/', PublicGroupsManager.as_view(), name="public_groups"),
+    path('<int:group_id>/', GroupManager.as_view(), name="group"),
+    path('<int:group_id>/member/', GroupMembersManager.as_view(), name="group_members"),
 ]

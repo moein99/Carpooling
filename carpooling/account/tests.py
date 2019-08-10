@@ -251,7 +251,7 @@ class InboxTest(TestCase):
     def test_sending_mail(self):
         Utils.login_user(self.client, 'moein', '1234')
         mail_data = {'message': "hi moein1", 'to': 'moein1'}
-        self.clien405t.post(reverse('account:user-inbox'), mail_data, follow=True)
+        self.client.post(reverse('account:user-inbox'), mail_data, follow=True)
         receiver = Member.objects.get(username='moein1')
         mail_text = Mail.objects.filter(receiver=receiver)[0].message
         self.assertEqual(mail_text, "hi moein1")
