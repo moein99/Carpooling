@@ -1,24 +1,21 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
-from django.http import HttpResponseNotFound, HttpResponseForbidden, HttpResponseNotAllowed
-from django.utils.decorators import method_decorator
-from django.views.generic.base import View
-
-from group.models import Group, Membership
 from django.contrib.gis.geos import Point
-from django.http import HttpResponseBadRequest, HttpResponse
+from django.db.models import Q
+from django.http import HttpResponseBadRequest
+from django.http import HttpResponseForbidden, HttpResponseNotAllowed
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.views.generic.base import View
+from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
 
+from carpooling.settings import DISTANCE_THRESHOLD
+from group.models import Group, Membership
 from trip.forms import TripForm
 from trip.models import Trip, TripGroups
-from expiringdict import ExpiringDict
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5*60)
-
-DISTANCE_THRESHOLD = 100  # threshold scale: meters
-# Create your views here.
 
 
 class TripCreationHandler(View):
@@ -28,9 +25,9 @@ class TripCreationHandler(View):
 
     @method_decorator(login_required)
     def post(self, request):
-        trip = TripHandler.create_trip(request.user, request.POST)
+        trip = TripCreationHandler.create_trip(request.user, request.POST)
         if trip is not None:
-            return redirect(reverse('trip:add-to-groups', kwargs={'trip_id': trip.id}))
+            return redirect(reverse('trip:add_to_groups', kwargs={'trip_id': trip.id}))
         return HttpResponseBadRequest('Invalid Request')
 
     @staticmethod
@@ -50,7 +47,7 @@ class TripCreationHandler(View):
 
 class TripHandler(View):
     @method_decorator(login_required)
-    def get(self, request):
+    def get(self, request, trip_id):
         raise NotImplementedError()
 
     @method_decorator(login_required)
@@ -82,10 +79,21 @@ class TripGroupsManager(View):
         trip = get_object_or_404(Trip, id=trip_id)
         user_nearby_groups = []
         for group in user_groups:
-            if TripHandler.is_group_near_trip(group, trip):
+            if TripGroupsManager.is_group_near_trip(group, trip):
                 user_nearby_groups.append(group)
         user_groups_cache[(user.id, trip_id)] = user_nearby_groups
         return user_nearby_groups
+
+    @staticmethod
+    def is_group_near_trip(group, trip):
+        if group.source is not None and not (TripGroupsManager.is_in_range(group.source, trip.source) or
+                                             TripGroupsManager.is_in_range(group.source, trip.destination)):
+            return False
+        return True
+
+    @staticmethod
+    def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
+        return point_distance(first_point, second_point).meters <= threshold
 
 
 class OwnedTripsManager(View):
@@ -142,56 +150,26 @@ class GroupTripsManager(View):
         return HttpResponseNotAllowed('Method Not Allowed')
 
 
-
-
-
-class TripHandler:
-
-    @staticmethod
-    def is_group_near_trip(group, trip):
-        if group.source is not None and not (TripHandler.is_in_range(group.source, trip.source) or
-                                             TripHandler.is_in_range(group.description, trip.destination)):
-            return False
-        return True
-
-    @staticmethod
-    def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
-        return point_distance(first_point, second_point).meters <= threshold
-
-
-    @staticmethod
-    @login_required
-    def handle_owned_trips(request):
-        if request.method == 'GET':
-            return TripHandler.do_get_owned_trips(request)
-
-    @staticmethod
-    def do_get_owned_trips(request):
-        user = request.user
-        trips = user.driving_trips.all()
-        return render(request, 'trip_manager.html', {'trips': trips})
-
-    @staticmethod
-    @login_required
-    def handle_active_trips(request):
-        if request.method == 'GET':
-            return TripHandler.do_get_active_trips(request)
-
-    @staticmethod
-    def do_get_active_trips(request):
+class ActiveTripsManager(View):
+    @method_decorator(login_required)
+    def get(self, request):
         user = request.user
         trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct().exclude(status=Trip.DONE_STATUS)
         return render(request, 'trip_manager.html', {'trips': trips})
 
-    @staticmethod
-    @login_required
-    def handle_available_trips(request):
-        if request.method == 'GET':
-            return TripHandler.do_get_available_trips(request)
+    @method_decorator(login_required)
+    def post(self, request):
+        return HttpResponseNotAllowed('Method Not Allowed')
 
-    @staticmethod
-    def do_get_available_trips(request):
+
+class AvailableTripsManager(View):
+    @method_decorator(login_required)
+    def get(self, request):
         user = request.user
         trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
             is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
         return render(request, 'trip_manager.html', {'trips': trips})
+
+    @method_decorator(login_required)
+    def post(self, request):
+        return HttpResponseNotAllowed('Method Not Allowed')

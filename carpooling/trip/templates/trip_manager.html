@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block body %}
-    <a href="{% url 'trip:trip-creation' %}">Create a trip</a>
+    <a href="{% url 'trip:trip_creation' %}">Create a trip</a>
 
     <div>
         <ul id="trips_list">
@@ -10,7 +10,7 @@
     </div>
     <br>
 
-    {# I Hate UI #}
+    {# I Hate JS #}
     <script>
         let trips_list = document.getElementById('trips_list');
         {% for trip in trips %}
@@ -39,7 +39,7 @@
             let link_to_trip = document.createElement('a');
             link_to_trip.appendChild(document.createTextNode('Go to trip'));
             link_to_trip.setAttribute('href', '{% url 'trip:trip' trip.id %}');
-            list_item.appendChild(link_to_trip)
+            list_item.appendChild(link_to_trip);
             list_item.appendChild(is_private);
             list_item.appendChild(source);
             list_item.appendChild(destination);
