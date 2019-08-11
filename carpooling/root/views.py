@@ -7,6 +7,7 @@ from django.views.generic.base import View
 import json
 
 from account.models import Mail, Member
+from group.models import Group
 
 
 class HomeManager(View):
