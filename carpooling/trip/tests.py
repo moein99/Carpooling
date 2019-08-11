@@ -4,7 +4,6 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 
-# Create your tests here.
 from account.models import Member
 from group.models import Group, Membership
 from trip.models import Trip, TripGroups, Companionship
@@ -12,19 +11,18 @@ from trip.models import Trip, TripGroups, Companionship
 
 class TripCreationTest(TestCase):
     def setUp(self):
-        self.member = Member(username='moein', password='1234')
-        self.user = Member.objects.create_user(username=self.member.username, password=self.member.password)
+        self.moein = Member.objects.create(username="moein")
+        self.moein.set_password("1234")
+        self.moein.save()
         self.client = Client()
-        post_data = {'username': self.member.username, 'password': self.member.password}
-        response = self.client.post(reverse('account:login'), post_data, follow=True)
-        self.assertEqual(response.status_code, 200)
+        self.client.login(username='moein', password='1234')
 
     def test_trip_creation(self):
         post_data = {'is_private': False, 'capacity': 18, 'start_estimation': '2006-10-25 14:30:57',
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '90', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 200)
 
     def test_invalid_dates(self):
@@ -32,7 +30,7 @@ class TripCreationTest(TestCase):
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '-1', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
 
     def test_invalid_capacity(self):
@@ -40,10 +38,10 @@ class TripCreationTest(TestCase):
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '-1', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
         post_data['capacity'] = 0
-        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
 
     def test_invalid_point(self):
@@ -51,19 +49,16 @@ class TripCreationTest(TestCase):
                      'end_estimation': '2006-10-25 14:30:58', 'source_lat': '13.2', 'source_lng': '15.2',
                      'destination_lat': '-1', 'destination_lng': '-1',
                      'trip_description': 'holy_test'}
-        response = self.client.post(reverse('trip:trip-creation'), post_data, follow=True)
+        response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
         self.assertEqual(response.status_code, 400)
 
 
 class GetTripsWithAnonymousUserTest(TestCase):
-    c = Client(enforce_csrf_checks=False)
-
     def setUp(self):
-        self.c.logout()
-
-    def test_get_owned_trips(self):
-        response = self.c.get('/trip/', follow=False)
-        self.assertRedirects(response, '/account/login/?next=%2Ftrip%2F')
+        self.moein = Member.objects.create(username="moein")
+        self.moein.set_password("1234")
+        self.moein.save()
+        self.client = Client(enforce_csrf_checks=False)
 
     def test_get_public_trips(self):
         Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False, status=Trip.WAITING_STATUS,
@@ -73,25 +68,12 @@ class GetTripsWithAnonymousUserTest(TestCase):
         Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True, status=Trip.WAITING_STATUS,
                             capacity=4, start_estimation=timezone.now(), end_estimation=timezone.now())
 
-        response = self.c.get('/trip/public/', follow=False)
+        response = self.client.get(reverse('trip:public_trips'), follow=False)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         self.assertEqual(list(Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))), list(trips))
 
-    def test_get_categorized_trips_without_public(self):
-        response = self.c.get('/trip/group/', follow=False)
-        self.assertRedirects(response, '/account/login/?next=/trip/group/')
-
-    def test_get_categorized_trips_with_public(self):
-        response = self.c.get('/trip/group/?include-public-groups=true', follow=False)
-        self.assertRedirects(response, '/account/login/?next=/trip/group/%3Finclude-public-groups%3Dtrue')
-
     def test_get_public_group_trips(self):
-        Group.objects.create(id=1, code='group1', title='group1', is_private=True, description='this is group1')
-        response = self.c.get('/trip/group/1/', follow=False)
-        self.assertRedirects(response, '/account/login/')
-
-    def test_get_private_group_trips(self):
         g1 = Group.objects.create(id=1, code='group1', title='group1', is_private=False, description='this is group1')
 
         t1 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
@@ -106,22 +88,16 @@ class GetTripsWithAnonymousUserTest(TestCase):
         TripGroups.objects.create(trip=t1, group=g1)
         TripGroups.objects.create(trip=t2, group=g1)
 
-        response = self.c.get('/trip/group/1/', follow=False)
+        self.client.login(username=self.moein.username, password='1234')
+        response = self.client.get(reverse('trip:group_trip', kwargs={'group_id': g1.id}), follow=False)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         self.assertEqual(list(g1.trip_set.all()), list(trips))
 
     def test_get_not_existing_group_trips(self):
-        response = self.c.get('/trip/group/5/', follow=False)
+        self.client.login(username=self.moein.username, password='1234')
+        response = self.client.get(reverse('trip:group_trip', kwargs={'group_id': 5}), follow=False)
         self.assertEqual(response.status_code, 404)
-
-    def test_get_active_trips(self):
-        response = self.c.get('/trip/active/', follow=False)
-        self.assertRedirects(response, '/account/login/?next=/trip/active/')
-
-    def test_get_available_trips(self):
-        response = self.c.get('/trip/all/', follow=False)
-        self.assertRedirects(response, '/account/login/?next=/trip/all/')
 
 
 class GetTripsWithAuthenticatedUserTest(TestCase):
@@ -189,54 +165,54 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
         self.c.login(username='mohsen', password='12345678')
 
     def test_get_owned_trips(self):
-        response = self.c.get('/trip/', follow=True)
+        response = self.c.get(reverse('trip:owned_trips'), follow=True)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         user = self.mohsen
         self.assertEqual(list(user.driving_trips.all()), list(trips))
 
     def test_get_public_trips(self):
-        response = self.c.get('/trip/public/', follow=True)
+        response = self.c.get(reverse('trip:public_trips'), follow=True)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         self.assertEqual(list(Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))), list(trips))
 
     def test_get_categorized_trips_without_public(self):
-        response = self.c.get('/trip/group/', follow=True)
+        response = self.c.get(reverse('trip:categorized_trips'), follow=True)
         self.assertEqual(response.status_code, 200)
         groups = response.context['groups']
         user = self.mohsen
         self.assertEqual(list(user.group_set.all()), list(groups))
 
     def test_get_categorized_trips_with_public(self):
-        response = self.c.get('/trip/group/?include-public-groups=true', follow=True)
+        response = self.c.get(reverse('trip:categorized_trips'), {"include-public-groups": 'true'}, follow=True)
         self.assertEqual(response.status_code, 200)
         groups = response.context['groups']
         user = self.mohsen
         self.assertEqual(list((user.group_set.all() | Group.objects.filter(is_private=False)).distinct()), list(groups))
 
     def test_get_participating_group_trips(self):
-        response = self.c.get('/trip/group/1/', follow=True)
+        response = self.c.get(reverse('trip:group_trip', kwargs={'group_id': 1}), follow=True)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         self.assertEqual(list(self.g1.trip_set.all()), list(trips))
 
     def test_get_not_participating_group_trips(self):
-        response = self.c.get('/trip/group/3/', follow=True)
+        response = self.c.get(reverse('trip:group_trip', kwargs={'group_id': 3}), follow=True)
         self.assertEqual(response.status_code, 403)
 
     def test_get_public_group_trips(self):
-        response = self.c.get('/trip/group/4/', follow=True)
+        response = self.c.get(reverse('trip:group_trip', kwargs={'group_id': 4}), follow=True)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         self.assertEqual(list(self.g4.trip_set.all()), list(trips))
 
     def test_get_not_existing_group_trips(self):
-        response = self.c.get('/trip/group/5/', follow=True)
+        response = self.c.get(reverse('trip:group_trip', kwargs={'group_id': 5}), follow=True)
         self.assertEqual(response.status_code, 404)
 
     def test_get_active_trips(self):
-        response = self.c.get('/trip/active/', follow=True)
+        response = self.c.get(reverse('trip:active_trips'), follow=True)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         user = self.mohsen
@@ -244,7 +220,7 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
             status=Trip.DONE_STATUS)), list(trips))
 
     def test_get_available_trips(self):
-        response = self.c.get('/trip/all/', follow=False)
+        response = self.c.get(reverse('trip:available_trips'), follow=False)
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         user = self.mohsen
