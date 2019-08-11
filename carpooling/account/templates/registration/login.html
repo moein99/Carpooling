@@ -5,10 +5,8 @@
         {{ form.as_p }}
         <input type="submit" value="Login">
     </form>
-    <p>Forgot password?<a href="{% url 'account:password' %}"> Click here... </a></p>
+    <p>Forgot password?<a href="{% url 'password_reset' %}"> Click here... </a></p>
     <p>Don't have an account?<a href="{% url 'account:signup' %}">Signup</a></p>
-
-
 
     {% if messages %}
         <ul class="messages">

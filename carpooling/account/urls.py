@@ -1,19 +1,13 @@
 from django.urls import path
-from account.views.report import ReportHandler
-from account.views.password import PasswordHandler
-from account.views.authentication import AuthenticationHandler
-from account.views.profile import UserProfileHandler
-from account.views.mail import InboxHandler
+
+from account.views.mail import MailManager
+from account.views.profile import SignUp, UserProfileManager
+from account.views.report import ReportManager
 
 app_name = "account"
 urlpatterns = [
-    path('login/', AuthenticationHandler.handle_login, name='login'),
-    path('signup/', AuthenticationHandler.handle_signup, name='signup'),
-    path('logout/', AuthenticationHandler.handle_logout, name='logout'),
-    path('profile/<int:user_id>/', UserProfileHandler.handle_profile, name='user_profile'),
-    path('profile/<int:user_id>/report/', ReportHandler.handle_report, name='report_member'),
-    path('profile/edit/', UserProfileHandler.handle_edit_profile, name='edit'),
-    path('password/reset/', PasswordHandler.handle, name='password'),
-    path('password/change/', PasswordHandler.handle_change_password, name='change_password'),
-    path('mail/', InboxHandler.handle_inbox, name='user-inbox'),
+    path('signup/', SignUp.as_view(), name='signup'),
+    path('profile/<int:user_id>/', UserProfileManager.as_view(), name='user_profile'),
+    path('profile/<int:user_id>/report/', ReportManager.as_view(), name='report_user'),
+    path('mail/', MailManager.as_view(), name='user_inbox'),
 ]

@@ -15,6 +15,7 @@ import django.contrib.staticfiles.finders
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOGIN_REDIRECT_URL = '/'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
@@ -59,7 +60,7 @@ ROOT_URLCONF = 'carpooling.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': ['group/templates'],
+        'DIRS': ['root/templates', 'account/templates', 'group/templates', 'trip/templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
