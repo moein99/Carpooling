@@ -5,7 +5,7 @@ from group.views import UserGroupsManager, CreateGroupManager, PublicGroupsManag
 
 app_name = "group"
 urlpatterns = [
-    path('', UserGroupsManager.as_view(), name="groups"),
+    path('', UserGroupsManager.as_view(), name="groups_list"),
     path('create/', CreateGroupManager.as_view(), name="create_group"),
     path('public/', PublicGroupsManager.as_view(), name="public_groups"),
     path('<int:group_id>/', GroupManager.as_view(), name="group"),

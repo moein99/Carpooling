@@ -40,7 +40,7 @@ class CreateGroupManager(View):
                 instance.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
             instance.save()
             Membership.objects.create(member=request.user, group=instance, role='ow')
-            return redirect(reverse('group:groups'))
+            return redirect(reverse('group:groups_list'))
         return render(request, "create_group.html", {
             "form": form,
         })
@@ -55,7 +55,7 @@ class PublicGroupsManager(View):
         })
 
 
-# TODO: refine this!
+# TODO: Clean this! It's dirty
 class GroupManager(View):
     @method_decorator(login_required)
     def get(self, request, group_id):
@@ -76,15 +76,15 @@ class GroupManager(View):
         if group.is_private and membership is None:
             return HttpResponseForbidden("You are not a member of this group")
         is_owner, has_joined = manage_group_authorization(membership)
-        request_type = request.POST['type']
-        if request_type == 'join' and not has_joined:
+        request_action = request.POST['action']
+        if request_action == 'join' and not has_joined:
             errors.append(join_group(request.user, group))
             has_joined = True
-        elif request_type == 'leave' and has_joined:
+        elif request_action == 'leave' and has_joined:
             membership.delete()
             has_joined = False
             errors.append("you left the group")
-        elif request_type == 'add' and is_owner:
+        elif request_action == 'add' and is_owner:
             errors.append(add_to_group(request.POST['username'], group))
 
         return render(request, "manage_group.html", {
@@ -95,6 +95,7 @@ class GroupManager(View):
         })
 
 
+# TODO: Clean this! It's dirty
 class GroupMembersManager(View):
     @method_decorator(login_required)
     def get(self, request, group_id):
