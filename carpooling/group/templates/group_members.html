@@ -8,8 +8,10 @@
         <li>
             <a href="{% url 'account:user_profile' member.id %}">{{ member.username }} : {{ member.email }}
                 {% if is_owner %}</a>
-                    <form name="create_station" method="post" action="{% url 'group:remove-member' group.id member.id %}">
+                    <form name="create_station" method="POST">
                         {% csrf_token %}
+                        <input type="hidden" name="type" value="DELETE">
+                        <input type="hidden" name="member_id" value={{ member.id }}>
                         <input type="submit" value="remove"/>
                     </form>
                 {% endif %}

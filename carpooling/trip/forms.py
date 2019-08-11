@@ -8,9 +8,7 @@ from trip.models import Trip, TripRequest, TripRequestSet
 class TripForm(forms.ModelForm):
     class Meta:
         model = Trip
-        fields = ('source', 'destination', 'is_private', 'status', 'capacity', 'start_estimation', 'end_estimation',
-                  'car_provider', 'trip_description')
-        exclude = ('car_provider', 'source', 'destination', 'status')
+        fields = ('is_private', 'capacity', 'start_estimation', 'end_estimation', 'trip_description')
 
     def clean(self):
         cleaned_data = super(TripForm, self).clean()

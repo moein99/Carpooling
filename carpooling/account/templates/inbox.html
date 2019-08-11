@@ -1,0 +1,56 @@
+{% extends 'base.html' %} {% load semanticui %}
+
+{% block extra_header %}
+    <style>
+        #inbox {
+            margin-right: 1em;
+            background-color: white;
+            box-shadow: 0.25em 0.25em 0.25em grey
+        }
+        #mail_sender {
+            margin-left: 1em;
+            background-color: white;
+            box-shadow: 0.25em 0.25em 0.25em grey;
+            height: 28em;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="ui centered grid" style="margin-top: 3em">
+        <div id="inbox" class="eight wide column">
+            <div class="ui internally celled center aligned grid">
+                {% for mail in mails %}
+                    <div class="row">
+                        <div class="four wide column">
+                            <div class="item">
+                                {% if mail.sender.profile_picture %}
+                                    <img class="ui avatar small circular image" src="{{ mail.sender.profile_picture.url }}" alt="prof">
+                                {% else %}
+                                    <img class="ui avatar small circular image" src="../../static/images/user_default_image.png" alt="prof">
+                                {% endif %}
+                                <div class="ui segment">
+                                    <p style="word-break: break-all">{{ mail.sender.username }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="twelve wide column">
+                            <div class="ui segment">
+                                <p style="word-break: break-all">{{ mail.message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div id="mail_sender" class="four wide column">
+            <form class="ui form" role="form" method="post">
+                {% csrf_token %}
+                {% render_field mail_form.message placeholder='type a message ...' _no_required='true'  %}
+                {% render_field mail_form.to placeholder='enter a username ...' _no_required='true' %}
+                <button type="submit" class="ui red button">Send Message</button>
+            </form>
+
+        </div>
+    </div>
+{% endblock %}

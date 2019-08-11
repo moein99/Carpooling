@@ -1,5 +1,30 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load staticfiles %}
+
+{% block extra_header %}
+    {% if unread_mails %}
+        <style>
+            #inbox-icon {
+                background-color: red;
+            }
+        </style>
+    {% endif %}
+{% endblock %}
 
 {% block body %}
-    <h1>This Is Home Page</h1>
+    <div class="ui centered grid">
+        <div class="twelve wide column">
+            <div class="ui segment">
+                <img style="width: 100%" class="ui massive rounded image" src="{% static 'images/home_page_image.jpg' %}" alt="Home Page">
+                <div class="ui centered header">
+                    {% if user.is_authenticated %}
+                        <a id="home_page_header" href="{% url 'trip:owned_trips' %}">Let's take a trip together!</a>
+                    {% else %}
+                        <p>Let's trip together! <a href="{% url 'login' %}">Login</a> or
+                        <a href="{% url 'account:signup' %}">Signup</a>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}

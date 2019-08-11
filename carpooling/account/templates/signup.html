@@ -6,7 +6,7 @@
         {{ form.as_p }}
         <input type="submit" value="Signup">
     </form>
-    <p>Have an account?<a href="{% url 'account:login' %}">Login</a></p>
+    <p>Have an account?<a href="{% url 'login' %}">Login</a></p>
 
     {% if messages %}
     <ul class="messages">
