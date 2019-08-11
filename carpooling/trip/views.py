@@ -15,7 +15,7 @@ from group.models import Group, Membership
 from trip.forms import TripForm
 from trip.models import Trip, TripGroups
 
-user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5*60)
+user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
 
 class TripCreationHandler(View):
@@ -108,13 +108,13 @@ class OwnedTripsManager(View):
 
 
 class PublicTripsManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
+    @staticmethod
+    def get(request):
         trips = Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))
         return render(request, 'trip_manager.html', {'trips': trips})
 
-    @method_decorator(login_required)
-    def post(self, request):
+    @staticmethod
+    def post(request):
         return HttpResponseNotAllowed('Method Not Allowed')
 
 
@@ -137,11 +137,9 @@ class CategorizedTripsManager(View):
 class GroupTripsManager(View):
     @method_decorator(login_required)
     def get(self, request, group_id):
-        group = Group.objects.get_or_404(id=group_id)
+        group = get_object_or_404(Group, id=group_id)
         if group.is_private:
-            if not request.user.is_authenticated:
-                return redirect(reverse('account:login'))
-            elif not Membership.objects.filter(member=request.user, group=group).exists():
+            if not Membership.objects.filter(member=request.user, group=group).exists():
                 return HttpResponseForbidden()
         return render(request, 'trip_manager.html', {'trips': group.trip_set.all()})
 
