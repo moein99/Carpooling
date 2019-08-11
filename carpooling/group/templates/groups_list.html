@@ -28,7 +28,7 @@
     <br>
     <div><h4>Search for groups</h4></div>
     <div class="item">
-        <div class="ui search">
+        <div class="ui search" id="group_search_box">
             <div class="ui icon input">
                 <input class="prompt" type="text" placeholder="Search group...">
                 <i class="search icon"></i>
@@ -37,7 +37,7 @@
     </div>
     <script>
         var url = "{% url 'group:group_search' 'query' %}".replace('query', '{query}');
-        $('.ui.search').search({
+        $('#group_search_box').search({
             type          : 'standard',
             minCharacters : 2,
             apiSettings   : {

@@ -14,7 +14,7 @@
         My Trips
     </a>
     <div class="right floated item">
-        <div class="ui search">
+        <div class="ui search" id="people_search_box">
             <div class="ui icon input">
                 <input class="prompt" type="text" placeholder="Search people...">
                 <i class="search icon"></i>
@@ -36,7 +36,7 @@
 
     <script>
         var url = "{% url 'root:search_people' 'query' %}".replace('query', '{query}');
-        $('.ui.search').search({
+        $('#people_search_box').search({
             type          : 'standard',
             minCharacters : 2,
             apiSettings   : {
