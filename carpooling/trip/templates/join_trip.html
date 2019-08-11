@@ -1,15 +1,19 @@
 {% extends 'base.html' %}
 
 {% block body %}
+    <br>
+    <div id='map' style="width: 100em; height: 50em;"></div>
+    <br>
+
     <form method="POST">
         {% csrf_token %}
+        {{ form.media }}
         {{ form.as_p }}
         <input type="hidden" name="source_lat" id="id_source_lat" value="35.70">
         <input type="hidden" name="source_lng" id="id_source_lng" value="51.40">
         <input type="hidden" name="destination_lat" id="id_destination_lat" value="35.70">
         <input type="hidden" name="destination_lng" id="id_destination_lng" value="51.30">
         <input type="submit" value="Request">
-        {{ form.errors }}
     </form>
 
     <script>

@@ -52,6 +52,9 @@ class TripRequestSet(models.Model):
         self.requests.filter(~Q(status=TripRequest.ACCEPTED_STATUS)).update(status=TripRequest.CANCELED_STATUS)
         self.closed = True
 
+    def __str__(self):
+        return self.title
+
 
 class TripRequest(models.Model):
     PENDING_STATUS = 'p'

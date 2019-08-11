@@ -51,27 +51,23 @@ class TripForm(forms.ModelForm):
 
 
 class TripRequestForm(forms.ModelForm):
-    user = Member()
-    type = forms.CharField(max_length=4, widget=forms.HiddenInput)
     create_new_request_set = forms.BooleanField(required=False, initial=False)
-    request_set_title = forms.CharField(max_length=50, widget=forms.HiddenInput, required=False)
-    containing_set = forms.ModelChoiceField(
-        required=False, queryset=TripRequestSet.objects.filter(applicant=user, closed=False))
+    new_request_set_title = forms.CharField(max_length=50, widget=forms.HiddenInput, required=False)
 
     def __init__(self, user, trip=None, *args, **kwargs):
         super(TripRequestForm, self).__init__(*args, **kwargs)
         self.user = user
         self.trip = trip
-        self.fields['type'].initial = 'POST'
+        self.fields['containing_set'].required = False
+        self.fields['containing_set'].queryset = user.trip_request_sets.all()
 
     def clean(self):
         if not self.cleaned_data['create_new_request_set'] and self.cleaned_data['containing_set'] is None:
-            raise forms.ValidationError('No set assigned to request')
-        if self.cleaned_data['create_new_request_set'] and self.cleaned_data['request_set_title'] == '':
-            self.cleaned_data['request_set_title'] = 'No Title'
+            raise forms.ValidationError('No set assigned to the request')
+        if self.cleaned_data['create_new_request_set'] and self.cleaned_data['new_request_set_title'] == '':
+            self.cleaned_data['new_request_set_title'] = 'No Title'
         return self.cleaned_data
 
     class Meta:
         model = TripRequest
-        fields = ['source', 'destination', 'containing_set', 'create_new_request_set', 'request_set_title']
-        exclude = ('source', 'destination')
+        fields = ['containing_set', 'create_new_request_set', 'new_request_set_title']

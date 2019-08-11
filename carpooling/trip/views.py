@@ -1,9 +1,8 @@
 from django.contrib.auth.decorators import login_required
-from django.contrib.gis.geos import Point
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.http import HttpResponseBadRequest
-from django.http import HttpResponseForbidden, HttpResponseNotAllowed
+from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -15,6 +14,7 @@ from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
+from trip.utils import extract_source, extract_destination
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
@@ -33,8 +33,8 @@ class TripCreationHandler(View):
 
     @staticmethod
     def create_trip(car_provider, post_data):
-        source = Point(float(post_data['source_lat']), float(post_data['source_lng']))
-        destination = Point(float(post_data['destination_lat']), float(post_data['destination_lng']))
+        source = extract_source(post_data)
+        destination = extract_destination(post_data)
         trip_form = TripForm(data=post_data)
         if trip_form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
             trip_obj = trip_form.save(commit=False)
@@ -45,22 +45,11 @@ class TripCreationHandler(View):
             return trip_obj
         return None
 
-    # @staticmethod
-    # @login_required
-    # def handle_requests(request, trip_id):
-    #     trip = get_object_or_404(Trip, id=trip_id)
-    #     if request.method == 'GET':
-    #         return TripHandler.do_get_requests(request, trip)
-    #     elif request.method == 'POST':
-    #         type = request.POST.get('type', 'POST')
-    #         if type == 'POST':
-    #             return TripHandler.do_post_requests(request, trip)
-    #         elif type == 'PUT':
-    #             return TripHandler.do_put_requests(request, trip)
 
 class TripRequestManager(View):
     @method_decorator(login_required)
-    def get(self, request, trip):
+    def get(self, request, trip_id):
+        trip = get_object_or_404(Trip, id=trip_id)
         if request.user == trip.car_provider:
             return TripRequestManager.show_trip_requests(request, trip)
         else:
@@ -77,25 +66,21 @@ class TripRequestManager(View):
         })
 
     @method_decorator(login_required)
-    def post(self, request, trip):
+    def post(self, request, trip_id):
+        type = request.POST.get('type', 'POST')
+        if type == 'PUT':
+            return self.put(request, trip_id)
+        trip = get_object_or_404(Trip, id=trip_id)
         if request.user == trip.car_provider:
             return HttpResponseForbidden()
-        source = TripRequestManager.extract_source(request.POST)
-        destination = TripRequestManager.extract_destination(request.POST)
+        source = extract_source(request.POST)
+        destination = extract_destination(request.POST)
         form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
         if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
-            trip_request = TripRequestManager.create_trip_request(form, source ,destination)
-            # return something
+            trip_request = TripRequestManager.create_trip_request(form, source, destination)
+            return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
         else:
             return render(request, 'join_trip.html', {'form': form})
-
-    @staticmethod
-    def extract_source(post_data):
-        return Point(float(post_data['source_lat']), float(post_data['source_lng']))
-
-    @staticmethod
-    def extract_destination(post_data):
-        return Point(float(post_data['destination_lat']), float(post_data['destination_lng']))
 
     @staticmethod
     def create_trip_request(form, source, destination):
@@ -107,8 +92,8 @@ class TripRequestManager(View):
         trip_request.source, trip_request.destination = source, destination
         trip_request.containing_set = request_set
         trip_request.trip = form.trip
+        trip_request.save()
         return trip_request
-
 
     @method_decorator(login_required)
     def put(self, request, trip):
@@ -128,9 +113,8 @@ class TripRequestManager(View):
             trip_request.status = TripRequest.ACCEPTED_STATUS
             trip_request.save()
             trip_request.containing_set.close()
-            return TripHandler.show_trip_requests(request, trip)
-        else:
-            return TripHandler.show_trip_requests(request, trip, "trip is full")
+            return TripRequestManager.show_trip_requests(request, trip)
+        return TripRequestManager.show_trip_requests(request, trip, "trip is full")
 
 
 class TripHandler(View):
@@ -190,20 +174,12 @@ class OwnedTripsManager(View):
         trips = request.user.driving_trips.all()
         return render(request, 'trip_manager.html', {'trips': trips})
 
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
 
 class PublicTripsManager(View):
     @staticmethod
     def get(request):
         trips = Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))
         return render(request, 'trip_manager.html', {'trips': trips})
-
-    @staticmethod
-    def post(request):
-        return HttpResponseNotAllowed('Method Not Allowed')
 
 
 class CategorizedTripsManager(View):
@@ -217,10 +193,6 @@ class CategorizedTripsManager(View):
             groups = user.group_set.all()
         return render(request, 'trips_categorized_by_group.html', {'groups': groups})
 
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
 
 class GroupTripsManager(View):
     @method_decorator(login_required)
@@ -231,10 +203,6 @@ class GroupTripsManager(View):
                 return HttpResponseForbidden()
         return render(request, 'trip_manager.html', {'trips': group.trip_set.all()})
 
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
 
 class ActiveTripsManager(View):
     @method_decorator(login_required)
@@ -242,10 +210,6 @@ class ActiveTripsManager(View):
         user = request.user
         trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct().exclude(status=Trip.DONE_STATUS)
         return render(request, 'trip_manager.html', {'trips': trips})
-
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
 
 
 class AvailableTripsManager(View):
@@ -255,7 +219,3 @@ class AvailableTripsManager(View):
         trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
             is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
         return render(request, 'trip_manager.html', {'trips': trips})
-
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
