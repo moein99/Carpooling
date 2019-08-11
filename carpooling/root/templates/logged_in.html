@@ -13,7 +13,7 @@
         <i class="car icon"></i>
         My Trips
     </a>
-    <a  href="{% url 'account:user-inbox' %}" class="right floated item" id="inbox-icon">
+    <a  href="{% url 'account:user_inbox' %}" class="right floated item" id="inbox-icon">
         <i class="mail icon"></i>
         Inbox
     </a>
@@ -21,18 +21,9 @@
         <i class="user icon"></i>
         Profile
     </a>
-    <a class="item" id="menu_item" onclick="logout_btn_on_click()">
+    <a href="{% url 'logout' %}" class="item" id="menu_item">
         <i class="sign-out icon"></i>
         Logout
     </a>
 
-    <script>
-        const url = '{% url 'account:logout' %}';
-        const data = {};
-        function logout_btn_on_click() {
-            $.post(url, data, function (data, status) {
-                window.location.replace('{% url 'root:home' %}');
-            });
-        }
-    </script>
 {% endblock %}

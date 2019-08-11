@@ -37,7 +37,7 @@
                     {% if reported %}
                         you have reported this member
                     {% else %}
-                        <a href="{% url 'account:report_member' member.id %}" style="float: right">
+                        <a href="{% url 'account:report_user' member.id %}" style="float: right">
                             Report this user
                         </a>
                     {% endif %}
@@ -64,11 +64,11 @@
                     {% endif %}
                 {% endif %}
                 {% if status == "OWNED_PROFILE" %}
-                    <a href="{% url 'account:change_password' %}">
+                    <a href="{% url 'password_change' %}">
                         Change Password
                     </a>
                     <br>
-                    <a href="{% url 'account:edit' %}">
+                    <a href="{% url 'account:user_profile' member.id %}?edit=true">
                         Edit your profile
                     </a>
                 {% endif %}
