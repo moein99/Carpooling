@@ -12,7 +12,6 @@ urlpatterns = [
     path('public/', PublicTripsManager.as_view(), name='public_trips'),
     path('group/', CategorizedTripsManager.as_view(), name='categorized_trips'),
     path('group/<int:group_id>/', GroupTripsManager.as_view(), name='group_trip'),
-
     path('active/', ActiveTripsManager.as_view(), name='active_trips'),
     path('all/', AvailableTripsManager.as_view(), name='available_trips')
 ]

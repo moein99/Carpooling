@@ -13,7 +13,15 @@
         <i class="car icon"></i>
         My Trips
     </a>
-    <a  href="{% url 'account:user_inbox' %}" class="right floated item" id="inbox-icon">
+    <div class="right floated item">
+        <div class="ui search">
+            <div class="ui icon input">
+                <input class="prompt" type="text" placeholder="Search people...">
+                <i class="search icon"></i>
+          </div>
+        </div>
+    </div>
+    <a  href="{% url 'account:user_inbox' %}" class="item" id="inbox-icon">
         <i class="mail icon"></i>
         Inbox
     </a>
@@ -25,5 +33,22 @@
         <i class="sign-out icon"></i>
         Logout
     </a>
+
+    <script>
+        var url = "{% url 'root:search_people' 'query' %}".replace('query', '{query}');
+        $('.ui.search').search({
+            type          : 'standard',
+            minCharacters : 2,
+            apiSettings   : {
+                url: url
+            },
+            fields: {
+                results: 'people',
+                title: 'user_name',
+                description: 'first_name' + ' ' + 'last_name',
+                url: 'url'
+            }
+        });
+    </script>
 
 {% endblock %}
