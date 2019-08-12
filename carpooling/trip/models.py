@@ -1,6 +1,6 @@
+from django.contrib.gis.db import models as gis_models
 from django.core.validators import MaxValueValidator
 from django.db import models
-from django.contrib.gis.db import models as gis_models
 from django.db.models import Q
 
 from account.models import Member
@@ -53,7 +53,7 @@ class TripRequestSet(models.Model):
         self.closed = True
 
     def __str__(self):
-        return self.title
+        return str(self.id) + '' + self.title
 
 
 class TripRequest(models.Model):
@@ -72,4 +72,6 @@ class TripRequest(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='requests')
     source = gis_models.PointField()
     destination = gis_models.PointField()
-    status = models.CharField(max_length=2, choices=STATUS_CHOICES, default=PENDING_STATUS)
+    creation_time = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
+

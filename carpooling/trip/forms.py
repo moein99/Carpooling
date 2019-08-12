@@ -52,7 +52,7 @@ class TripForm(forms.ModelForm):
 
 class TripRequestForm(forms.ModelForm):
     create_new_request_set = forms.BooleanField(required=False, initial=False)
-    new_request_set_title = forms.CharField(max_length=50, widget=forms.HiddenInput, required=False)
+    new_request_set_title = forms.CharField(max_length=50, required=False)
 
     def __init__(self, user, trip=None, *args, **kwargs):
         super(TripRequestForm, self).__init__(*args, **kwargs)
@@ -66,6 +66,8 @@ class TripRequestForm(forms.ModelForm):
             raise forms.ValidationError('No set assigned to the request')
         if self.cleaned_data['create_new_request_set'] and self.cleaned_data['new_request_set_title'] == '':
             self.cleaned_data['new_request_set_title'] = 'No Title'
+        if self.cleaned_data['containing_set'].closed:
+            raise forms.ValidationError('Selected request set is closed')
         return self.cleaned_data
 
     class Meta:

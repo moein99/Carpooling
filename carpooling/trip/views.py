@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponseGone
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -12,6 +12,7 @@ from geopy.distance import distance as point_distance
 
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
+from root.decorators import check_request_type
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
 from trip.utils import extract_source, extract_destination
@@ -50,10 +51,12 @@ class TripRequestManager(View):
     @method_decorator(login_required)
     def get(self, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
+        if trip.status != trip.WAITING_STATUS:
+            return HttpResponseGone('Trip status is not waiting')
         if request.user == trip.car_provider:
-            return TripRequestManager.show_trip_requests(request, trip)
+            return self.show_trip_requests(request, trip)
         else:
-            return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
+            return self.show_create_request_form(request, trip)
 
     @staticmethod
     def show_trip_requests(request, trip, error=None):
@@ -65,27 +68,35 @@ class TripRequestManager(View):
             'error': error,
         })
 
+    @staticmethod
+    def show_create_request_form(request, trip):
+        if trip.capacity > trip.passengers.count():
+            return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
+        return HttpResponseGone('Trip is full')
+
     @method_decorator(login_required)
+    @check_request_type
     def post(self, request, trip_id):
-        type = request.POST.get('type', 'POST')
-        if type == 'PUT':
-            return self.put(request, trip_id)
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user == trip.car_provider:
             return HttpResponseForbidden()
+
+        if trip.status != trip.WAITING_STATUS:
+            return HttpResponseGone('Trip status is not waiting')
+
         source = extract_source(request.POST)
         destination = extract_destination(request.POST)
         form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
         if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
-            trip_request = TripRequestManager.create_trip_request(form, source, destination)
+            TripRequestManager.create_trip_request(form, source, destination)
             return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
-        else:
-            return render(request, 'join_trip.html', {'form': form})
+        return render(request, 'join_trip.html', {'form': form})
 
     @staticmethod
     def create_trip_request(form, source, destination):
         if form.cleaned_data['create_new_request_set']:
-            request_set = TripRequestSet.objects.create(applicant=form.user, title=form.cleaned_data['title'])
+            request_set = TripRequestSet.objects.create(applicant=form.user,
+                                                        title=form.cleaned_data['new_request_set_title'])
         else:
             request_set = form.cleaned_data['containing_set']
         trip_request = form.save(commit=False)
@@ -96,14 +107,27 @@ class TripRequestManager(View):
         return trip_request
 
     @method_decorator(login_required)
-    def put(self, request, trip):
+    def put(self, request, trip_id):
+        trip = get_object_or_404(Trip, id=trip_id)
         if request.user != trip.car_provider:
             return HttpResponseForbidden()
+
+        if trip.status != trip.WAITING_STATUS:
+            return HttpResponseGone('Trip status is not waiting')
+
         try:
             trip_request_id = int(request.POST.get('request_id'))
         except (ValueError, TypeError):
             return HttpResponseBadRequest()
-        return TripRequestManager.accept_request_if_trip_is_not_full(request, trip, trip_request_id)
+
+        # TODO: change the following line to "action = request.post.get('action')" and handle action field in template
+        action = request.post.get('action', 'accept')
+        if action == 'accept':
+            return TripRequestManager.accept_request_if_trip_is_not_full(request, trip, trip_request_id)
+        elif action == 'decline':
+            raise NotImplementedError()
+        else:
+            return HttpResponseBadRequest('Unknown action')
 
     @staticmethod
     @atomic
