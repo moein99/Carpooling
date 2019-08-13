@@ -328,7 +328,7 @@ class CreateTripRequestTest(TestCase):
         self.assertEqual(response.status_code, HttpResponseForbidden().status_code)
 
 
-class AcceptTripRequestTest(TestCase):
+class ManageTripRequestsTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
@@ -346,6 +346,10 @@ class AcceptTripRequestTest(TestCase):
 
         self.c.login(username='car_provider', password='12345678')
 
+    def test_get_trip_requests_list(self):
+        response = self.c.get(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}))
+        self.assertTemplateUsed(response, 'trip_requests.html')
+
     def test_valid_accept_trip_request(self):
         dummy_trip_request = mommy.make(TripRequest, trip=self.trip, containing_set=self.trip_request_set)
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
@@ -362,6 +366,17 @@ class AcceptTripRequestTest(TestCase):
         self.assertTrue(self.trip_request.containing_set.closed)
         self.assertTrue(Companionship.objects.filter(trip=self.trip, member=self.applicant).exists())
 
+    def test_valid_decline_trip_request(self):
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'decline',
+        })
+        self.trip_request = TripRequest.objects.get(id=self.trip_request.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip_request.status, TripRequest.DECLINED_STATUS)
+
     def test_accept_full_trip_request(self):
         for i in range(self.trip.capacity):
             mommy.make(Companionship, trip=self.trip, member=mommy.make(Member))
@@ -375,7 +390,7 @@ class AcceptTripRequestTest(TestCase):
         self.assertFalse(self.trip_request.containing_set.closed)
         self.assertEqual(response.context['error'], 'Trip is full')
 
-    def test_incorrect_trip_request_id(self):
+    def test_accept_incorrect_trip_request_id(self):
         dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS)
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': dummy_trip.id}), {
             'type': 'PUT',
@@ -387,8 +402,26 @@ class AcceptTripRequestTest(TestCase):
         self.assertEqual(self.trip_request.status, TripRequest.PENDING_STATUS)
         self.assertFalse(self.trip_request.containing_set.closed)
 
-    def test_accept_by_none_car_provider(self):
+    def test_decline_incorrect_trip_request_id(self):
+        dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS)
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': dummy_trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+
+        self.assertEqual(response.status_code, HttpResponseNotFound().status_code)
+        self.assertEqual(self.trip_request.status, TripRequest.PENDING_STATUS)
+
+    def test_manage_requests_by_none_car_provider(self):
         self.c.login(username='applicant', password='12345678')
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+        self.assertEqual(response.status_code, HttpResponseForbidden.status_code)
+
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
             'type': 'PUT',
             'request_id': self.trip_request.id,

@@ -122,7 +122,7 @@ class TripRequestManager(View):
         if action == 'accept':
             return TripRequestManager.accept_request_if_trip_is_not_full(request, trip, trip_request_id)
         elif action == 'decline':
-            raise NotImplementedError()
+            return TripRequestManager.decline_request(request, trip, trip_request_id)
         else:
             return HttpResponseBadRequest('Unknown action')
 
@@ -131,13 +131,26 @@ class TripRequestManager(View):
     def accept_request_if_trip_is_not_full(request, trip, trip_request_id):
         if trip.capacity > Companionship.objects.filter(trip=trip).count():
             trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+            if trip_request.status != TripRequest.PENDING_STATUS:
+                return HttpResponseBadRequest('Request is not pending')
             trip_request.status = TripRequest.ACCEPTED_STATUS
             trip_request.save()
             Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
                                          source=trip_request.source, destination=trip_request.destination)
             trip_request.containing_set.close()
+            trip_request.containing_set.save()
             return TripRequestManager.show_trip_requests(request, trip)
         return TripRequestManager.show_trip_requests(request, trip, "Trip is full")
+
+    @staticmethod
+    @atomic
+    def decline_request(request, trip, trip_request_id):
+        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        if trip_request.status != TripRequest.PENDING_STATUS:
+            return HttpResponseBadRequest('Request is not pending')
+        trip_request.status = TripRequest.DECLINED_STATUS
+        trip_request.save()
+        return TripRequestManager.show_trip_requests(request, trip)
 
 
 class TripHandler(View):

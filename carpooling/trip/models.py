@@ -51,7 +51,6 @@ class TripRequestSet(models.Model):
     def close(self):
         self.requests.filter(~Q(status=TripRequest.ACCEPTED_STATUS)).update(status=TripRequest.CANCELED_STATUS)
         self.closed = True
-        self.save()
 
     def __str__(self):
         return str(self.id) + '' + self.title
