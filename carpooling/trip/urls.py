@@ -1,6 +1,8 @@
+from django.contrib.auth.decorators import login_required
 from django.urls import path
-from trip.views import TripHandler, TripCreationHandler, TripGroupsManager, OwnedTripsManager, PublicTripsManager, \
-    CategorizedTripsManager, GroupTripsManager, ActiveTripsManager, AvailableTripsManager, TripRequestManager
+from trip.views import TripHandler, TripCreationHandler, TripGroupsManager, TripRequestManager, \
+    get_owned_trips_view, get_public_trips_view, get_categorized_trips_view, get_group_trips_view, \
+    get_active_trips_view, get_available_trips_view
 
 app_name = "trip"
 
@@ -8,13 +10,12 @@ urlpatterns = [
     path("create/", TripCreationHandler.as_view(), name='trip_creation'),
     path("<int:trip_id>/", TripHandler.as_view(), name='trip'),
     path("<int:trip_id>/group/add/", TripGroupsManager.as_view(), name='add_to_groups'),
-    path('<int:trip_id>/request/', TripRequestManager.as_view(), name='request'),
-    path('', OwnedTripsManager.as_view(), name='owned_trips'),
-    path('public/', PublicTripsManager.as_view(), name='public_trips'),
-    path('group/', CategorizedTripsManager.as_view(), name='categorized_trips'),
-    path('group/<int:group_id>/', GroupTripsManager.as_view(), name='group_trip'),
+    path('<int:trip_id>/request/', login_required(TripRequestManager.as_view()), name='trip_request'),
+    path('', get_owned_trips_view, name='owned_trips'),
+    path('public/', get_public_trips_view, name='public_trips'),
+    path('group/', get_categorized_trips_view, name='categorized_trips'),
+    path('group/<int:group_id>/', get_group_trips_view, name='group_trip'),
 
-    path('active/', ActiveTripsManager.as_view(), name='active_trips'),
-    path('all/', AvailableTripsManager.as_view(), name='available_trips')
+    path('active/', get_active_trips_view, name='active_trips'),
+    path('all/', get_available_trips_view, name='available_trips')
 ]
-

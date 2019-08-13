@@ -62,11 +62,14 @@ class TripRequestForm(forms.ModelForm):
         self.fields['containing_set'].queryset = user.trip_request_sets.all()
 
     def clean(self):
-        if not self.cleaned_data['create_new_request_set'] and self.cleaned_data['containing_set'] is None:
+        create_new_request_set = self.cleaned_data['create_new_request_set']
+        containing_set = self.cleaned_data['containing_set']
+        new_request_set_title = self.cleaned_data['new_request_set_title']
+        if not create_new_request_set and containing_set is None:
             raise forms.ValidationError('No set assigned to the request')
-        if self.cleaned_data['create_new_request_set'] and self.cleaned_data['new_request_set_title'] == '':
+        if create_new_request_set and new_request_set_title == '':
             self.cleaned_data['new_request_set_title'] = 'No Title'
-        if self.cleaned_data['containing_set'].closed:
+        if containing_set is not None and containing_set.closed:
             raise forms.ValidationError('Selected request set is closed')
         return self.cleaned_data
 
