@@ -69,9 +69,7 @@ class TripRequestManager(View):
 
     @staticmethod
     def show_create_request_form(request, trip):
-        if trip.capacity > trip.passengers.count():
-            return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
-        return HttpResponseGone('Trip is full')
+        return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
 
     @check_request_type
     def post(self, request, trip_id):
@@ -129,7 +127,7 @@ class TripRequestManager(View):
     @staticmethod
     @atomic
     def accept_request_if_trip_is_not_full(request, trip, trip_request_id):
-        if trip.capacity > Companionship.objects.filter(trip=trip).count():
+        if trip.capacity > trip.passengers.count():
             trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
             if trip_request.status != TripRequest.PENDING_STATUS:
                 return HttpResponseBadRequest('Request is not pending')
@@ -138,7 +136,6 @@ class TripRequestManager(View):
             Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
                                          source=trip_request.source, destination=trip_request.destination)
             trip_request.containing_set.close()
-            trip_request.containing_set.save()
             return TripRequestManager.show_trip_requests(request, trip)
         return TripRequestManager.show_trip_requests(request, trip, "Trip is full")
 

@@ -1,7 +1,6 @@
 from django.contrib.gis.db import models as gis_models
 from django.core.validators import MaxValueValidator
 from django.db import models
-from django.db.models import Q
 
 from account.models import Member
 from group.models import Group
@@ -49,7 +48,7 @@ class TripRequestSet(models.Model):
     closed = models.BooleanField(default=False)
 
     def close(self):
-        self.requests.filter(~Q(status=TripRequest.ACCEPTED_STATUS)).update(status=TripRequest.CANCELED_STATUS)
+        self.requests.exclude(status=TripRequest.ACCEPTED_STATUS).update(status=TripRequest.CANCELED_STATUS)
         self.closed = True
         self.save()
 
@@ -75,4 +74,3 @@ class TripRequest(models.Model):
     destination = gis_models.PointField()
     creation_time = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
-
