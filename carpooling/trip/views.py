@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
+from geopy import Point
 from geopy.distance import distance as point_distance
 from numpy.linalg import norm
 
