@@ -177,7 +177,7 @@ class TripVoteHandler(View):
                 object = Vote.objects.get(sender=request.user, receiver=members[i])
                 rate[i] = object.rate
             except Vote.DoesNotExist:
-                rate[i] = -1
+                rate[i] = None
         members_rate = {}
         for i in range(len(members)):
             members_rate[members[i]] = rate[i]

@@ -63,8 +63,10 @@ class UserProfileManager(View):
         if len(votes) != 0:
             rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
         return render(request, "profile.html",
-                      {"status": UserProfileManager.ANONYMOUS_PROFILE_STATUS, "member": user_data,
-                       "rate": rate})
+                      {
+                        "status": UserProfileManager.ANONYMOUS_PROFILE_STATUS, "member": user_data,
+                        "rate": rate
+                      })
 
     @staticmethod
     def show_my_profile(request, user_id):
@@ -73,9 +75,10 @@ class UserProfileManager(View):
         rate = -1
         if len(votes) != 0:
             rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
-        return render(request, "profile.html",
-                      {"status": UserProfileManager.OWNED_PROFILE_STATUS, "member": request.user, 'comment_form':
-                          CommentForm(), 'user_comments': user_comments, "rate": rate})
+        return render(request, "profile.html", {
+            "status": UserProfileManager.OWNED_PROFILE_STATUS, "member": request.user, 'comment_form':
+                CommentForm(), 'user_comments': user_comments, "rate": rate
+        })
 
     @staticmethod
     def show_member_profile(request, user_id):
@@ -86,9 +89,10 @@ class UserProfileManager(View):
         rate = -1
         if len(votes) != 0:
             rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
-        return render(request, "profile.html",
-                      {"status": UserProfileManager.MEMBER_PROFILE_STATUS, "member": user_data, 'reported': reported,
-                       'comment_form': CommentForm(), 'user_comments': user_comments, "rate": rate})
+        return render(request, "profile.html", {
+            "status": UserProfileManager.MEMBER_PROFILE_STATUS, "member": user_data, 'reported': reported,
+            'comment_form': CommentForm(), 'user_comments': user_comments, "rate": rate
+        })
 
     @staticmethod
     def get_user_comments(prof_id):
@@ -135,4 +139,3 @@ class UserProfileManager(View):
         user.phone_number = request.POST.get('phone_number')
         user.save()
         return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
-

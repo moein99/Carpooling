@@ -2,7 +2,7 @@
 
 {% block body %}
     {% for member, rate in members_rate %}
-        {% if rate != -1 %}
+        {% if rate != None %}
             {{ member.username }}
             <form>
                 <input type="radio" name={{ member.username }} value='1'> 1
