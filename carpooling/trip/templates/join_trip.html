@@ -9,15 +9,16 @@
         {% csrf_token %}
         {{ form.media }}
         {{ form.as_p }}
-        <input type="submit" value="Create">
         <input type="hidden" name="source_lat" id="id_source_lat" value="35.70">
         <input type="hidden" name="source_lng" id="id_source_lng" value="51.40">
         <input type="hidden" name="destination_lat" id="id_destination_lat" value="35.70">
         <input type="hidden" name="destination_lng" id="id_destination_lng" value="51.30">
+        <input type="submit" value="Request">
     </form>
 
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoibW9laW45OSIsImEiOiJjanlwdml1cmkxZjlvM25ub29ibWx6MXZ6In0.qeTaEdOQHEbgUXTapsbj0A';
+        var coordinates = document.getElementById('coordinates');
         var map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
@@ -45,6 +46,34 @@
         }
         source_marker.on('dragend', onDragEnd);
         destination_marker.on('dragend', onDragEnd);
-    </script>
 
+        let labels = document.getElementsByTagName('LABEL');
+        for (let i = 0; i < labels.length; i++) {
+            if (labels[i].htmlFor !== '') {
+                 let elem = document.getElementById(labels[i].htmlFor);
+                 if (elem)
+                    elem.label = labels[i];
+            }
+        }
+
+        handleCreateNewRequestSetClicked()
+
+        function handleCreateNewRequestSetClicked() {
+            let new_request_set_title = document.getElementById('id_new_request_set_title');
+            let containing_set = document.getElementById('id_containing_set');
+            if (document.getElementById('id_create_new_request_set').checked) {
+                new_request_set_title.disabled = false;
+                containing_set.disabled = true;
+                containing_set.selectedIndex = 0
+            }
+            else {
+                new_request_set_title.disabled = true;
+                new_request_set_title.value = '';
+                containing_set.disabled = false;
+            }
+        }
+
+        // language=JQuery-CSS
+        $("form input[name='create_new_request_set']").click(handleCreateNewRequestSetClicked);
+    </script>
 {% endblock %}

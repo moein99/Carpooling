@@ -1,12 +1,14 @@
 from django.contrib.gis.geos import Point
 from django.db.models import Q
+from django.http import HttpResponseGone, HttpResponseForbidden, HttpResponseNotFound
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
+from model_mommy import mommy
 
 from account.models import Member
 from group.models import Group, Membership
-from trip.models import Trip, TripGroups, Companionship
+from trip.models import Trip, TripGroups, Companionship, TripRequestSet, TripRequest
 
 
 class TripCreationTest(TestCase):
@@ -110,57 +112,40 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
         self.ali = Member.objects.create(username="alialavi")
         self.ali.set_password("12345678")
         self.ali.save()
-        self.g1 = Group.objects.create(id=1, code='group1', title='group1', is_private=True,
-                                       description='this is group1')
-        self.g2 = Group.objects.create(id=2, code='group2', title='group2', is_private=False,
-                                       description='this is group2')
-        self.g3 = Group.objects.create(id=3, code='group3', title='group3', is_private=True,
-                                       description='this is group3')
-        self.g4 = Group.objects.create(id=4, code='group4', title='group4', is_private=False,
-                                       description='this is group4')
+
+        self.g1 = mommy.make(Group, id=1, is_private=True)
+        self.g2 = mommy.make(Group, id=2, is_private=False)
+        self.g3 = mommy.make(Group, id=3, is_private=True)
+        self.g4 = mommy.make(Group, id=4, is_private=False)
 
         Membership.objects.create(member=self.mohsen, group=self.g1, role=Membership.MEMBER)
         Membership.objects.create(member=self.mohsen, group=self.g2, role=Membership.MEMBER)
         Membership.objects.create(member=self.ali, group=self.g3, role=Membership.MEMBER)
         Membership.objects.create(member=self.ali, group=self.g4, role=Membership.MEMBER)
 
-        self.t1 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
-                                      car_provider=self.mohsen, status=Trip.WAITING_STATUS, capacity=4,
-                                      start_estimation=timezone.now(), end_estimation=timezone.now())
-        self.t2 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
-                                      car_provider=self.ali, status=Trip.WAITING_STATUS, capacity=4,
-                                      start_estimation=timezone.now(), end_estimation=timezone.now())
-        self.t3 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True,
-                                      car_provider=self.mohsen, status=Trip.WAITING_STATUS, capacity=4,
-                                      start_estimation=timezone.now(), end_estimation=timezone.now())
-        self.t4 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True,
-                                      car_provider=self.ali, status=Trip.WAITING_STATUS, capacity=4,
-                                      start_estimation=timezone.now(), end_estimation=timezone.now())
-        self.t5 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
-                                      car_provider=self.mohsen, status=Trip.WAITING_STATUS, capacity=4,
-                                      start_estimation=timezone.now(), end_estimation=timezone.now())
-        self.t6 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
-                                      car_provider=self.ali, status=Trip.DONE_STATUS, capacity=4,
-                                      start_estimation=timezone.now(), end_estimation=timezone.now())
-        self.t7 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True,
-                                      car_provider=self.ali, status=Trip.WAITING_STATUS, capacity=4,
-                                      start_estimation=timezone.now(), end_estimation=timezone.now())
+        t1 = mommy.make(Trip, is_private=False, car_provider=self.mohsen, status=Trip.WAITING_STATUS)
+        t2 = mommy.make(Trip, is_private=False, car_provider=self.ali, status=Trip.WAITING_STATUS)
+        t3 = mommy.make(Trip, is_private=True, car_provider=self.mohsen, status=Trip.WAITING_STATUS)
+        t4 = mommy.make(Trip, is_private=True, car_provider=self.ali, status=Trip.WAITING_STATUS)
+        t5 = mommy.make(Trip, is_private=False, car_provider=self.mohsen, status=Trip.WAITING_STATUS)
+        t6 = mommy.make(Trip, is_private=False, car_provider=self.ali, status=Trip.DONE_STATUS)
+        t7 = mommy.make(Trip, is_private=True, car_provider=self.ali, status=Trip.WAITING_STATUS)
 
-        Companionship.objects.create(trip=self.t4, member=self.mohsen, source=Point(5, 6), destination=Point(6, 7))
-        Companionship.objects.create(trip=self.t6, member=self.mohsen, source=Point(5, 6), destination=Point(6, 7))
+        Companionship.objects.create(trip=t4, member=self.mohsen, source=Point(5, 6), destination=Point(6, 7))
+        Companionship.objects.create(trip=t6, member=self.mohsen, source=Point(5, 6), destination=Point(6, 7))
 
-        TripGroups.objects.create(trip=self.t1, group=self.g1)
-        TripGroups.objects.create(trip=self.t1, group=self.g3)
-        TripGroups.objects.create(trip=self.t2, group=self.g1)
-        TripGroups.objects.create(trip=self.t2, group=self.g2)
-        TripGroups.objects.create(trip=self.t3, group=self.g2)
-        TripGroups.objects.create(trip=self.t3, group=self.g4)
-        TripGroups.objects.create(trip=self.t4, group=self.g3)
-        TripGroups.objects.create(trip=self.t4, group=self.g4)
-        TripGroups.objects.create(trip=self.t5, group=self.g1)
-        TripGroups.objects.create(trip=self.t5, group=self.g4)
-        TripGroups.objects.create(trip=self.t6, group=self.g2)
-        TripGroups.objects.create(trip=self.t6, group=self.g3)
+        TripGroups.objects.create(trip=t1, group=self.g1)
+        TripGroups.objects.create(trip=t1, group=self.g3)
+        TripGroups.objects.create(trip=t2, group=self.g1)
+        TripGroups.objects.create(trip=t2, group=self.g2)
+        TripGroups.objects.create(trip=t3, group=self.g2)
+        TripGroups.objects.create(trip=t3, group=self.g4)
+        TripGroups.objects.create(trip=t4, group=self.g3)
+        TripGroups.objects.create(trip=t4, group=self.g4)
+        TripGroups.objects.create(trip=t5, group=self.g1)
+        TripGroups.objects.create(trip=t5, group=self.g4)
+        TripGroups.objects.create(trip=t6, group=self.g2)
+        TripGroups.objects.create(trip=t6, group=self.g3)
 
         self.c.login(username='mohsen', password='12345678')
 
@@ -226,3 +211,236 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
         user = self.mohsen
         self.assertEqual(list((user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
             is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)), list(trips))
+
+
+class SearchTripTest(TestCase):
+    def setUp(self):
+        self.temp_account = Member.objects.create(username="testuser", first_name="javad")
+        self.temp_account.set_password('majid123')
+        self.temp_account.save()
+
+    def test_anonymous(self):
+        response = self.client.get(path=reverse('trip:search_trips'))
+        self.assertEqual(response.status_code, 302)
+
+    def test_search_login(self):
+        self.client.login(username='testuser', password='majid123')
+        response = self.client.get(reverse('trip:search_trips'))
+        self.assertEqual(response.status_code, 200)
+
+
+class CreateTripRequestTest(TestCase):
+    c = Client(enforce_csrf_checks=False)
+
+    def setUp(self):
+        self.car_provider = Member.objects.create(username="car_provider_user")
+        self.car_provider.set_password("12345678")
+        self.car_provider.save()
+        self.applicant = Member.objects.create(username="applicant_user")
+        self.applicant.set_password("12345678")
+        self.applicant.save()
+
+        self.trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS, capacity=2)
+        self.c.login(username='applicant_user', password='12345678')
+
+    def test_get_trip_request_form(self):
+        response = self.c.get(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}))
+        self.assertTemplateUsed(response, 'join_trip.html')
+
+    def test_new_request_set(self):
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': True,
+            'new_request_set_title': 'Title',
+        })
+
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+
+        new_trip_request_set = TripRequestSet.objects.get(title='Title')
+        new_trip_request = TripRequest.objects.get(trip=self.trip)
+        self.assertEqual(new_trip_request.containing_set, new_trip_request_set)
+
+    def test_existing_request_set(self):
+        trip_request_set = TripRequestSet.objects.create(title='Title', applicant=self.applicant)
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': False,
+            'containing_set': trip_request_set.id,
+        })
+
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+
+        new_trip_request = TripRequest.objects.get(trip=self.trip)
+        self.assertEqual(new_trip_request.containing_set, trip_request_set)
+
+    def test_without_request_set(self):
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': False,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'join_trip.html')
+        self.assertFalse(TripRequest.objects.filter(trip=self.trip).exists())
+
+    def test_closed_request_set(self):
+        trip_request_set = TripRequestSet.objects.create(title='Title', applicant=self.applicant, closed=True)
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': False,
+            'containing_set': trip_request_set.id,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'join_trip.html')
+        self.assertFalse(TripRequest.objects.filter(trip=self.trip).exists())
+
+    def test_no_title_new_request_set(self):
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': True,
+        })
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+        self.assertTrue(TripRequestSet.objects.filter(title='No Title').exists())
+
+    def test_not_waiting_trip(self):
+        self.trip.status = Trip.IN_ROUTE_STATUS
+        self.trip.save()
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': True,
+            'new_request_set_title': 'Title'
+        })
+        self.assertEqual(response.status_code, HttpResponseGone().status_code)
+
+    def test_car_provider_request(self):
+        self.c.login(username='car_provider_user', password='12345678')
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': True,
+            'new_request_set_title': 'Title'
+        })
+        self.assertEqual(response.status_code, HttpResponseForbidden().status_code)
+
+
+class ManageTripRequestsTest(TestCase):
+    c = Client(enforce_csrf_checks=False)
+
+    def setUp(self):
+        self.car_provider = Member.objects.create(username="car_provider")
+        self.car_provider.set_password("12345678")
+        self.car_provider.save()
+
+        self.applicant = Member.objects.create(username="applicant")
+        self.applicant.set_password("12345678")
+        self.applicant.save()
+
+        self.trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS, capacity=2)
+        self.trip_request_set = TripRequestSet.objects.create(title='Title', applicant=self.applicant)
+        self.trip_request = mommy.make(TripRequest, trip=self.trip, containing_set=self.trip_request_set)
+
+        self.c.login(username='car_provider', password='12345678')
+
+    def test_get_trip_requests_list(self):
+        response = self.c.get(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}))
+        self.assertTemplateUsed(response, 'trip_requests.html')
+
+    def test_valid_accept_trip_request(self):
+        dummy_trip_request = mommy.make(TripRequest, trip=self.trip, containing_set=self.trip_request_set)
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+        self.trip_request = TripRequest.objects.get(id=self.trip_request.id)
+        dummy_trip_request = TripRequest.objects.get(id=dummy_trip_request.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip_request.status, TripRequest.ACCEPTED_STATUS)
+        self.assertEqual(dummy_trip_request.status, TripRequest.CANCELED_STATUS)
+        self.assertTrue(self.trip_request.containing_set.closed)
+        self.assertTrue(Companionship.objects.filter(trip=self.trip, member=self.applicant).exists())
+
+    def test_valid_decline_trip_request(self):
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'decline',
+        })
+        self.trip_request = TripRequest.objects.get(id=self.trip_request.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip_request.status, TripRequest.DECLINED_STATUS)
+
+    def test_accept_full_trip_request(self):
+        for i in range(self.trip.capacity):
+            mommy.make(Companionship, trip=self.trip, member=mommy.make(Member))
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip_request.status, TripRequest.PENDING_STATUS)
+        self.assertFalse(self.trip_request.containing_set.closed)
+        self.assertEqual(response.context['error'], 'Trip is full')
+
+    def test_accept_incorrect_trip_request_id(self):
+        dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS)
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': dummy_trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+
+        self.assertEqual(response.status_code, HttpResponseNotFound().status_code)
+        self.assertEqual(self.trip_request.status, TripRequest.PENDING_STATUS)
+        self.assertFalse(self.trip_request.containing_set.closed)
+
+    def test_decline_incorrect_trip_request_id(self):
+        dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS)
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': dummy_trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+
+        self.assertEqual(response.status_code, HttpResponseNotFound().status_code)
+        self.assertEqual(self.trip_request.status, TripRequest.PENDING_STATUS)
+
+    def test_manage_requests_by_none_car_provider(self):
+        self.c.login(username='applicant', password='12345678')
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+        self.assertEqual(response.status_code, HttpResponseForbidden.status_code)
+
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'type': 'PUT',
+            'request_id': self.trip_request.id,
+            'action': 'accept',
+        })
+        self.assertEqual(response.status_code, HttpResponseForbidden.status_code)
