@@ -139,6 +139,10 @@ EMAIL_USE_TLS = True
 EMAIL_PORT = 587
 EMAIL_HOST_USER = 'carpooling.cafebazaar@gmail.com'
 EMAIL_HOST_PASSWORD = os.environ['CARPOOLING_PASS']
+SPOTIFY_CLIENT_ID = os.environ['CLIENT_ID']
+SPOTIFY_CLIENT_SECRET = os.environ['CLIENT_SECRET']
+SPOTIFY_REFRESH_TOKEN = os.environ['REFRESH_TOKEN']
+SPOTIFY_USERNAME = os.environ['SPOTIFY_USERNAME']
 LOGIN_URL = '/account/login/'
 
 

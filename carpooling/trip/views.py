@@ -9,7 +9,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
-
+from .utils import SpotifyAgent
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from trip.forms import TripForm
@@ -40,6 +40,8 @@ class TripCreationHandler(View):
             trip_obj.car_provider = car_provider
             trip_obj.status = Trip.WAITING_STATUS
             trip_obj.source, trip_obj.destination = source, destination
+            spotify_agent = SpotifyAgent()
+            trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
             trip_obj.save()
             return trip_obj
         return None
@@ -171,3 +173,9 @@ class AvailableTripsManager(View):
     @method_decorator(login_required)
     def post(self, request):
         return HttpResponseNotAllowed('Method Not Allowed')
+
+
+class MusicPlayerManager(View):
+    def get(self, request, trip_id):
+        playlist_id = Trip.objects.get(id=trip_id).playlist_id
+        return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})
