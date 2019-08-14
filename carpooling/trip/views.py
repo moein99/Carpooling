@@ -13,12 +13,14 @@ from geopy import Point
 from geopy.distance import distance as point_distance
 from numpy.linalg import norm
 
+from account.models import Member
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
 from trip.utils import extract_source, extract_destination
+from background_task import background
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
@@ -36,7 +38,7 @@ class TripCreationHandler(View):
         return HttpResponseBadRequest('Invalid Request')
 
     @staticmethod
-    def create_trip(car_provider, post_data):
+    def create_trip(car_provider: Member, post_data):
         source = extract_source(post_data)
         destination = extract_destination(post_data)
         trip_form = TripForm(data=post_data)
@@ -46,8 +48,28 @@ class TripCreationHandler(View):
             trip_obj.status = Trip.WAITING_STATUS
             trip_obj.source, trip_obj.destination = source, destination
             trip_obj.save()
+            TripCreationHandler.set_notification(trip_obj)
             return trip_obj
         return None
+
+    @staticmethod
+    def set_notification(trip: Trip):
+        TripCreationHandler.do_at_time(trip.start_estimation, TripCreationHandler.notify)(trip.id)
+
+    @staticmethod
+    def notify(trip_id: int):
+        trip = Trip.objects.get(id=trip_id)
+        # todo: if trip have edit change it
+        for user in trip.passengers:
+            user.send_mail("start estimation", "your trip start estimation started !")
+        return
+
+    @staticmethod
+    def do_at_time(time, function):
+        @background(schedule=time)
+        def result(*args, **kwargs):
+            return function(*args, **kwargs)
+        return result
 
 
 class TripRequestManager(View):
