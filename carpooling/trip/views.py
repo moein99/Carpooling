@@ -1,3 +1,4 @@
+import numpy as np
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db.transaction import atomic
@@ -8,7 +9,9 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
+from geopy import Point
 from geopy.distance import distance as point_distance
+from numpy.linalg import norm
 
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
@@ -199,6 +202,68 @@ class TripGroupsManager(View):
     @staticmethod
     def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
         return point_distance(first_point, second_point).meters <= threshold
+
+
+class SearchTripsManger(View):
+    @method_decorator(login_required)
+    def get(self, request):
+        if SearchTripsManger.is_valid_search_parameter(request.GET):
+            return SearchTripsManger.do_search(request) if request.GET else render(request, "search_trip")
+        return HttpResponseBadRequest()
+
+    @staticmethod
+    def subtract_two_point(point1: Point, point2: Point):
+        return Point(point1.x - point2.x, point1.y - point2.y)
+
+    @staticmethod
+    def get_query_score(query, source: Point, destination: Point):
+        source_to_trip_source = SearchTripsManger.subtract_two_point(query.source, source)
+        destination_to_trip_destination = SearchTripsManger.subtract_two_point(query.destination, destination)
+        trip_source_to_destination = SearchTripsManger.subtract_two_point(query.destination, query.source)
+
+        if np.dot(trip_source_to_destination, SearchTripsManger.subtract_two_point(destination, source)) < 0:
+            return np.inf
+        else:
+            if np.dot(source_to_trip_source, trip_source_to_destination) > 0:
+                # distance to source dot
+                to_source_distance = norm(source_to_trip_source)
+            else:
+                # distance to line
+                to_source_distance = norm(np.cross(source_to_trip_source, trip_source_to_destination)) / norm(
+                    trip_source_to_destination)
+
+            if np.dot(destination_to_trip_destination, trip_source_to_destination) < 0:
+                # distance to source dot
+                to_destination_distance = norm(destination_to_trip_destination)
+            else:
+                # distance to line
+                to_destination_distance = norm(
+                    np.cross(destination_to_trip_destination, trip_source_to_destination)) / norm(
+                    trip_source_to_destination)
+        return to_source_distance + to_destination_distance
+
+    @staticmethod
+    def do_search(request):
+        data = request.GET
+        source = Point(float(data['source_lat']), float(data['source_lng']))
+        destination = Point(float(data['destination_lat']), float(data['destination_lng']))
+        trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
+            status=Trip.DONE_STATUS)
+        trips = sorted(trips, key=lambda query: (
+            SearchTripsManger.get_query_score(query, source=source, destination=destination)))
+        trips = filter(lambda query: SearchTripsManger.get_query_score(query, source, destination) != np.inf, trips)
+        return render(request,
+                      "trips_viewer.html",
+                      {"trips": trips}
+                      )
+
+    @staticmethod
+    def is_valid_search_parameter(post_data):
+        if post_data:
+            return 'source_lat' in post_data and 'source_lng' in post_data and 'destination_lat' in post_data and \
+                   'destination_lng' in post_data
+        else:
+            return True
 
 
 @login_required
