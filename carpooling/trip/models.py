@@ -1,6 +1,7 @@
 from django.contrib.gis.db import models as gis_models
 from django.core.validators import MaxValueValidator
 from django.db import models
+from django.db.models import Q
 
 from account.models import Member
 from group.models import Group
@@ -20,6 +21,7 @@ class Trip(models.Model):
     source = gis_models.PointField()
     destination = gis_models.PointField()
     is_private = models.BooleanField(default=False)
+    people_can_join_automatically = models.BooleanField(default=False)
     passengers = models.ManyToManyField(Member, through="Companionship", related_name='partaking_trips')
     groups = models.ManyToManyField(Group, through="TripGroups")
     car_provider = models.ForeignKey(Member, on_delete=models.SET_NULL, related_name='driving_trips', null=True)
@@ -29,6 +31,13 @@ class Trip(models.Model):
     end_estimation = models.DateTimeField()
     trip_description = models.CharField(max_length=200, null=True)
 
+    @classmethod
+    def get_accessible_trips_for(cls, user):
+        return cls.objects.filter(Q(is_private=False) | Q(groups__membership__member=user) | Q(car_provider=user) | Q(
+            companionship__member=user))
+
+    class TripIsFullException(Exception):
+        pass
 
 class Companionship(models.Model):
     member = models.ForeignKey(Member, on_delete=models.CASCADE)

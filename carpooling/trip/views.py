@@ -23,14 +23,14 @@ from trip.utils import extract_source, extract_destination
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
 
-class TripCreationHandler(View):
+class TripCreationManger(View):
     @method_decorator(login_required)
     def get(self, request):
         return render(request, 'trip_creation.html', {'form': TripForm()})
 
     @method_decorator(login_required)
     def post(self, request):
-        trip = TripCreationHandler.create_trip(request.user, request.POST)
+        trip = TripCreationManger.create_trip(request.user, request.POST)
         if trip is not None:
             return redirect(reverse('trip:add_to_groups', kwargs={'trip_id': trip.id}))
         return HttpResponseBadRequest('Invalid Request')
@@ -53,12 +53,18 @@ class TripCreationHandler(View):
 class TripRequestManager(View):
     def get(self, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
-        if trip.status != trip.WAITING_STATUS:
-            return HttpResponseGone('Trip status is not waiting')
+
         if request.user == trip.car_provider:
+            if trip.status != trip.WAITING_STATUS:
+                return HttpResponseGone('Trip status is not waiting')
             return self.show_trip_requests(request, trip)
-        else:
+
+        elif trip in Trip.get_accessible_trips_for(request.user):
+            if trip.status != trip.WAITING_STATUS:
+                return HttpResponseGone('Trip status is not waiting')
             return self.show_create_request_form(request, trip)
+        else:
+            return HttpResponseForbidden('You have not access to this trip')
 
     @staticmethod
     def show_trip_requests(request, trip, error=None):
@@ -80,6 +86,9 @@ class TripRequestManager(View):
         if request.user == trip.car_provider:
             return HttpResponseForbidden()
 
+        if trip not in Trip.get_accessible_trips_for(request.user):
+            return HttpResponseForbidden('You have not access to this trip')
+
         if trip.status != trip.WAITING_STATUS:
             return HttpResponseGone('Trip status is not waiting')
 
@@ -87,7 +96,12 @@ class TripRequestManager(View):
         destination = extract_destination(request.POST)
         form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
         if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
-            TripRequestManager.create_trip_request(form, source, destination)
+            trip_request = TripRequestManager.create_trip_request(form, source, destination)
+            if trip.people_can_join_automatically:
+                try:
+                    self.accept_trip_request(trip, trip_request.id)
+                except Trip.TripIsFullException():
+                    pass
             return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
         return render(request, 'join_trip.html', {'form': form})
 
@@ -121,36 +135,62 @@ class TripRequestManager(View):
         # TODO: change the following line to "action = request.POST.get('action')" and handle action field in template
         action = request.POST.get('action', 'accept')
         if action == 'accept':
-            return TripRequestManager.accept_request_if_trip_is_not_full(request, trip, trip_request_id)
+            try:
+                TripRequestManager.accept_trip_request(trip, trip_request_id)
+                return TripRequestManager.show_trip_requests(request, trip)
+            except Trip.TripIsFullException:
+                return TripRequestManager.show_trip_requests(request, trip, "Trip is full")
         elif action == 'decline':
-            return TripRequestManager.decline_request(request, trip, trip_request_id)
+            TripRequestManager.decline_request(trip, trip_request_id)
+            return TripRequestManager.show_trip_requests(request, trip)
         else:
             return HttpResponseBadRequest('Unknown action')
 
     @staticmethod
     @atomic
-    def accept_request_if_trip_is_not_full(request, trip, trip_request_id):
-        if trip.capacity > trip.passengers.count():
-            trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
-            if trip_request.status != TripRequest.PENDING_STATUS:
-                return HttpResponseBadRequest('Request is not pending')
-            trip_request.status = TripRequest.ACCEPTED_STATUS
-            trip_request.save()
-            Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
-                                         source=trip_request.source, destination=trip_request.destination)
-            trip_request.containing_set.close()
-            return TripRequestManager.show_trip_requests(request, trip)
-        return TripRequestManager.show_trip_requests(request, trip, "Trip is full")
+    def accept_trip_request(trip, trip_request_id):
+        if trip.capacity <= trip.passengers.count():
+            raise Trip.TripIsFullException()
+        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        trip_request.status = TripRequest.ACCEPTED_STATUS
+        trip_request.save()
+        Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
+                                     source=trip_request.source, destination=trip_request.destination)
+        trip_request.containing_set.close()
 
     @staticmethod
     @atomic
-    def decline_request(request, trip, trip_request_id):
+    def decline_request(trip, trip_request_id):
         trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
-        if trip_request.status != TripRequest.PENDING_STATUS:
-            return HttpResponseBadRequest('Request is not pending')
         trip_request.status = TripRequest.DECLINED_STATUS
         trip_request.save()
-        return TripRequestManager.show_trip_requests(request, trip)
+
+
+class AutomaticJoinRequestManager(View):
+    def get(self, request):
+        return render(request, 'automatic_join_trip_form.html')
+
+    def post(self, request):
+        trips = Trip.get_accessible_trips_for(request.user).filter(people_can_join_automatically=True)
+        source = extract_source(request.POST)
+        destination = extract_destination(request.POST)
+        if not TripForm.is_point_valid(source) or not TripForm.is_point_valid(destination):
+            return HttpResponseBadRequest()
+
+        trips = sorted(trips, key=lambda trip: (
+            SearchTripsManager.get_trip_score(trip, source=source, destination=destination)))
+        for trip in trips:
+            if self.join_if_trip_is_not_full(trip, request.user, source, destination):
+                return redirect(reverse('trip:trip', kwargs={'trip_id': trip.id}))
+        return render(request, 'trip_not_found.html')
+
+    @classmethod
+    @atomic
+    def join_if_trip_is_not_full(cls, trip, user, source, destination):
+        if trip.capacity > trip.passengers.count():
+            Companionship.objects.create(trip=trip, member=user, source=source, destination=destination)
+            return True
+        return False
 
 
 class TripHandler(View):
@@ -204,11 +244,11 @@ class TripGroupsManager(View):
         return point_distance(first_point, second_point).meters <= threshold
 
 
-class SearchTripsManger(View):
+class SearchTripsManager(View):
     @method_decorator(login_required)
     def get(self, request):
-        if SearchTripsManger.is_valid_search_parameter(request.GET):
-            return SearchTripsManger.do_search(request) if request.GET else render(request, "search_trip")
+        if SearchTripsManager.is_valid_search_parameter(request.GET):
+            return SearchTripsManager.do_search(request) if request.GET else render(request, "search_trip")
         return HttpResponseBadRequest()
 
     @staticmethod
@@ -216,12 +256,12 @@ class SearchTripsManger(View):
         return Point(point1.x - point2.x, point1.y - point2.y)
 
     @staticmethod
-    def get_query_score(query, source: Point, destination: Point):
-        source_to_trip_source = SearchTripsManger.subtract_two_point(query.source, source)
-        destination_to_trip_destination = SearchTripsManger.subtract_two_point(query.destination, destination)
-        trip_source_to_destination = SearchTripsManger.subtract_two_point(query.destination, query.source)
+    def get_trip_score(trip, source: Point, destination: Point):
+        source_to_trip_source = SearchTripsManager.subtract_two_point(trip.source, source)
+        destination_to_trip_destination = SearchTripsManager.subtract_two_point(trip.destination, destination)
+        trip_source_to_destination = SearchTripsManager.subtract_two_point(trip.destination, trip.source)
 
-        if np.dot(trip_source_to_destination, SearchTripsManger.subtract_two_point(destination, source)) < 0:
+        if np.dot(trip_source_to_destination, SearchTripsManager.subtract_two_point(destination, source)) < 0:
             return np.inf
         else:
             if np.dot(source_to_trip_source, trip_source_to_destination) > 0:
@@ -249,13 +289,10 @@ class SearchTripsManger(View):
         destination = Point(float(data['destination_lat']), float(data['destination_lng']))
         trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
             status=Trip.DONE_STATUS)
-        trips = sorted(trips, key=lambda query: (
-            SearchTripsManger.get_query_score(query, source=source, destination=destination)))
-        trips = filter(lambda query: SearchTripsManger.get_query_score(query, source, destination) != np.inf, trips)
-        return render(request,
-                      "trips_viewer.html",
-                      {"trips": trips}
-                      )
+        trips = sorted(trips, key=lambda trip: (
+            SearchTripsManager.get_trip_score(trip, source=source, destination=destination)))
+        trips = filter(lambda trip: SearchTripsManager.get_trip_score(trip, source, destination) != np.inf, trips)
+        return render(request, "trips_viewer.html", {"trips": trips})
 
     @staticmethod
     def is_valid_search_parameter(post_data):
@@ -264,6 +301,8 @@ class SearchTripsManger(View):
                    'destination_lng' in post_data
         else:
             return True
+
+    # Trip.objects.filter(groups__membership__member_id=)
 
 
 @login_required

@@ -63,12 +63,9 @@ class GetTripsWithAnonymousUserTest(TestCase):
         self.client = Client(enforce_csrf_checks=False)
 
     def test_get_public_trips(self):
-        Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False, status=Trip.WAITING_STATUS,
-                            capacity=4, start_estimation=timezone.now(), end_estimation=timezone.now())
-        Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False, status=Trip.DONE_STATUS,
-                            capacity=4, start_estimation=timezone.now(), end_estimation=timezone.now())
-        Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True, status=Trip.WAITING_STATUS,
-                            capacity=4, start_estimation=timezone.now(), end_estimation=timezone.now())
+        mommy.make(Trip, is_private=False, status=Trip.WAITING_STATUS)
+        mommy.make(Trip, is_private=False, status=Trip.DONE_STATUS)
+        mommy.make(Trip, is_private=True, status=Trip.WAITING_STATUS)
 
         response = self.client.get(reverse('trip:public_trips'), follow=False)
         self.assertEqual(response.status_code, 200)
@@ -76,17 +73,11 @@ class GetTripsWithAnonymousUserTest(TestCase):
         self.assertEqual(list(Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))), list(trips))
 
     def test_get_public_group_trips(self):
-        g1 = Group.objects.create(id=1, code='group1', title='group1', is_private=False, description='this is group1')
+        g1 = mommy.make(Group, is_private=False)
 
-        t1 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
-                                 status=Trip.WAITING_STATUS, capacity=4, start_estimation=timezone.now(),
-                                 end_estimation=timezone.now())
-        t2 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=False,
-                                 status=Trip.DONE_STATUS, capacity=4, start_estimation=timezone.now(),
-                                 end_estimation=timezone.now())
-        t3 = Trip.objects.create(source=Point(3, 4), destination=Point(4, 5), is_private=True,
-                                 status=Trip.WAITING_STATUS, capacity=4, start_estimation=timezone.now(),
-                                 end_estimation=timezone.now())
+        t1 = mommy.make(Trip, is_private=False, status=Trip.WAITING_STATUS)
+        t2 = mommy.make(Trip, is_private=False, status=Trip.DONE_STATUS)
+        t3 = mommy.make(Trip, is_private=True, status=Trip.WAITING_STATUS)
         TripGroups.objects.create(trip=t1, group=g1)
         TripGroups.objects.create(trip=t2, group=g1)
 
@@ -240,7 +231,10 @@ class CreateTripRequestTest(TestCase):
         self.applicant.set_password("12345678")
         self.applicant.save()
 
-        self.trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS, capacity=2)
+        self.trip = mommy.make(Trip, is_private=True, car_provider=self.car_provider, status=Trip.WAITING_STATUS, capacity=2)
+        group = mommy.make(Group)
+        mommy.make(TripGroups, trip=self.trip, group=group)
+        mommy.make(Membership, member=self.applicant, group=group)
         self.c.login(username='applicant_user', password='12345678')
 
     def test_get_trip_request_form(self):
@@ -292,6 +286,8 @@ class CreateTripRequestTest(TestCase):
         self.assertTemplateUsed(response, 'join_trip.html')
         self.assertFalse(TripRequest.objects.filter(trip=self.trip).exists())
 
+
+
     def test_closed_request_set(self):
         trip_request_set = TripRequestSet.objects.create(title='Title', applicant=self.applicant, closed=True)
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
@@ -330,6 +326,19 @@ class CreateTripRequestTest(TestCase):
             'new_request_set_title': 'Title'
         })
         self.assertEqual(response.status_code, HttpResponseGone().status_code)
+
+    def test_not_accessible_trip(self):
+        Membership.objects.filter(member=self.applicant).delete()
+        response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
+            'source_lat': '34',
+            'source_lng': '34',
+            'destination_lat': '34',
+            'destination_lng': '34',
+            'create_new_request_set': True,
+            'new_request_set_title': 'Title'
+        })
+        self.assertEqual(response.status_code, HttpResponseForbidden().status_code)
+
 
     def test_car_provider_request(self):
         self.c.login(username='car_provider_user', password='12345678')
