@@ -1,0 +1,43 @@
+import json
+
+from django.http import HttpResponseBadRequest, HttpResponse
+from django.shortcuts import redirect
+from django.urls import reverse
+from .utils import ItemType
+
+from trip.models import Trip
+from .utils import SpotifyAgent
+
+spotify_agent = SpotifyAgent()
+
+
+def spotify_search(request, trip_id, query):
+    if request.method == "GET":
+        search_result = search(query)
+        append_add_to_playlist_url(search_result, trip_id)
+        result = {'items': search_result}
+        return HttpResponse(json.dumps(result))
+    else:
+        return HttpResponseBadRequest('Method not implemented')
+
+
+def add_to_playlist(request, trip_id, item_id, item_type):
+    if request.method == "GET":
+        playlist_id = Trip.objects.get(id=trip_id).playlist_id
+        spotify_agent.add_items(playlist_id, item_id, item_type)
+        return redirect(reverse('trip:trip_music_player', kwargs={"trip_id": trip_id}))
+    else:
+        return HttpResponseBadRequest("method not implemented")
+
+
+def search(query):
+    search_results = []
+    search_results.extend(spotify_agent.search_items(query, ItemType.TRACK))
+    search_results.extend(spotify_agent.search_items(query, ItemType.ALBUM))
+    return search_results
+
+
+def append_add_to_playlist_url(items, trip_id):
+    for item in items:
+        item['url'] = reverse('trip:add_to_playlist', kwargs={'trip_id': trip_id, 'item_id': item['id'],
+                                                              'item_type': item['type']})

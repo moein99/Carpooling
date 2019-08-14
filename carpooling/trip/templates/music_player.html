@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block body %}
+    <div class="ui search left floated" id="spotify_search_box" style="margin-right: 6em">
+        <div class="ui icon input">
+            <input class="prompt" type="text" placeholder="Search countries...">
+            <i class="search icon"></i>
+        </div>
+    </div>
+
+    <div style="float: right">
+        <iframe id="player" src="https://open.spotify.com/embed/playlist/{{ playlist_id }}" width="400" height="600" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+    </div>
+
+    <script>
+        $('.ui.search')
+            .search({
+                type: 'category',
+            });
+    </script>
+
+    <script>
+        var url = "{% url 'trip:spotify_search' trip_id 'query' %}".replace('query', '{query}');
+        $('#spotify_search_box').search({
+            type          : 'standard',
+            minCharacters : 3,
+            apiSettings   : {
+                url: url
+            },
+            fields: {
+                results: 'items',
+                title: 'title',
+                description: 'description',
+                url: 'url'
+            },
+            maxResults: 10,
+        });
+    </script>
+
+
+{% endblock %}
