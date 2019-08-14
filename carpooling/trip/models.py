@@ -74,3 +74,9 @@ class TripRequest(models.Model):
     destination = gis_models.PointField()
     creation_time = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
+
+class Vote(models.Model):
+    receiver = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="received_vote")
+    sender = models.ForeignKey(Member, on_delete=models.SET_NULL, related_name="sent_vote", null=True)
+    trip = models.ForeignKey(Trip, on_delete=models.SET_NULL, null=True)
+    rate = models.FloatField()

@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.db.models.aggregates import Sum
 from django.http import HttpResponseNotAllowed, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.urls import reverse, reverse_lazy
@@ -10,6 +11,7 @@ from django.views.generic.base import View
 
 from account.forms import *
 from account.models import Member
+from trip.models import Vote
 
 
 class SignUp(generic.CreateView):
@@ -56,24 +58,37 @@ class UserProfileManager(View):
     @staticmethod
     def show_profile_to_anonymous(request, user_id):
         user_data = Member.objects.get(id=user_id)
+        votes = Vote.objects.filter(receiver=Member.objects.get(id=user_id))
+        rate = -1
+        if len(votes) != 0:
+            rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
         return render(request, "profile.html",
-                      {"status": UserProfileManager.ANONYMOUS_PROFILE_STATUS, "member": user_data})
+                      {"status": UserProfileManager.ANONYMOUS_PROFILE_STATUS, "member": user_data,
+                       "rate": rate})
 
     @staticmethod
     def show_my_profile(request, user_id):
         user_comments = UserProfileManager.get_user_comments(user_id)
+        votes = Vote.objects.filter(receiver=Member.objects.get(id=user_id))
+        rate = -1
+        if len(votes) != 0:
+            rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
         return render(request, "profile.html",
                       {"status": UserProfileManager.OWNED_PROFILE_STATUS, "member": request.user, 'comment_form':
-                          CommentForm(), 'user_comments': user_comments})
+                          CommentForm(), 'user_comments': user_comments, "rate": rate})
 
     @staticmethod
     def show_member_profile(request, user_id):
         user_data = Member.objects.get(id=user_id)
         reported = UserProfileManager.is_reported(request.user.id, user_id)
         user_comments = UserProfileManager.get_user_comments(user_id)
+        votes = Vote.objects.filter(receiver=Member.objects.get(id=user_id))
+        rate = -1
+        if len(votes) != 0:
+            rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
         return render(request, "profile.html",
                       {"status": UserProfileManager.MEMBER_PROFILE_STATUS, "member": user_data, 'reported': reported,
-                       'comment_form': CommentForm(), 'user_comments': user_comments})
+                       'comment_form': CommentForm(), 'user_comments': user_comments, "rate": rate})
 
     @staticmethod
     def get_user_comments(prof_id):

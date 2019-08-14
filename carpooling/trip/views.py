@@ -13,11 +13,12 @@ from geopy import Point
 from geopy.distance import distance as point_distance
 from numpy.linalg import norm
 
+from account.models import Member
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
 from trip.forms import TripForm, TripRequestForm
-from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
+from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
 from trip.utils import extract_source, extract_destination
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
@@ -161,6 +162,33 @@ class TripHandler(View):
     @method_decorator(login_required)
     def post(self, request):
         raise NotImplementedError()
+
+class TripVoteHandler(View):
+    @method_decorator(login_required())
+    def get(self, request, trip_id):
+        members = []
+        rate = []
+        trip = Trip.objects.get(id=trip_id)
+        members.extend(trip.passengers.all())
+        members.append(trip.car_provider)
+        members.remove(request.user)
+        for i in range(len(members)):
+            try:
+                object = Vote.objects.get(sender=request.user, receiver=members[i])
+                rate[i] = object.rate
+            except Vote.DoesNotExist:
+                rate[i] = -1
+        members_rate = {}
+        for i in range(len(members)):
+            members_rate[members[i]] = rate[i]
+        return render(request, 'trip_vote_manage.html', {'members_rate': members_rate, 'trip_id': trip_id})
+
+    @method_decorator(login_required())
+    def post(self, request, receiver, rate, trip_id):
+        object = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip=trip_id)
+        object.save()
+        return render(request, "trip_vote_manage.html")
+
 
 
 class TripGroupsManager(View):
