@@ -1,13 +1,12 @@
 import numpy as np
 from django.contrib.auth.decorators import login_required
-from django.contrib.gis.geos import Point
 from django.db.models import Q
-from django.http import HttpResponseBadRequest
-from django.http import HttpResponseForbidden, HttpResponseNotAllowed
+from django.db.transaction import atomic
+from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse
+from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.utils.termcolors import background
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
@@ -15,8 +14,9 @@ from numpy.linalg import norm
 
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
-from trip.forms import TripForm
-from trip.models import Trip, TripGroups
+from root.decorators import check_request_type, only_get_allowed
+from trip.forms import TripForm, TripRequestForm
+from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
 from trip.utils import extract_source, extract_destination
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
@@ -49,10 +49,113 @@ class TripCreationHandler(View):
         return None
 
 
+class TripRequestManager(View):
+    def get(self, request, trip_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if trip.status != trip.WAITING_STATUS:
+            return HttpResponseGone('Trip status is not waiting')
+        if request.user == trip.car_provider:
+            return self.show_trip_requests(request, trip)
+        else:
+            return self.show_create_request_form(request, trip)
+
+    @staticmethod
+    def show_trip_requests(request, trip, error=None):
+        trip_members_count = Companionship.objects.filter(trip=trip).count()
+        return render(request, 'trip_requests.html', {
+            'requests': trip.requests.filter(status=TripRequest.PENDING_STATUS),
+            'members_count': trip_members_count,
+            'capacity': trip.capacity,
+            'error': error,
+        })
+
+    @staticmethod
+    def show_create_request_form(request, trip):
+        return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
+
+    @check_request_type
+    def post(self, request, trip_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user == trip.car_provider:
+            return HttpResponseForbidden()
+
+        if trip.status != trip.WAITING_STATUS:
+            return HttpResponseGone('Trip status is not waiting')
+
+        source = extract_source(request.POST)
+        destination = extract_destination(request.POST)
+        form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
+        if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
+            TripRequestManager.create_trip_request(form, source, destination)
+            return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
+        return render(request, 'join_trip.html', {'form': form})
+
+    @staticmethod
+    def create_trip_request(form, source, destination):
+        if form.cleaned_data['create_new_request_set']:
+            request_set = TripRequestSet.objects.create(applicant=form.user,
+                                                        title=form.cleaned_data['new_request_set_title'])
+        else:
+            request_set = form.cleaned_data['containing_set']
+        trip_request = form.save(commit=False)
+        trip_request.source, trip_request.destination = source, destination
+        trip_request.containing_set = request_set
+        trip_request.trip = form.trip
+        trip_request.save()
+        return trip_request
+
+    def put(self, request, trip_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user != trip.car_provider:
+            return HttpResponseForbidden()
+
+        if trip.status != trip.WAITING_STATUS:
+            return HttpResponseGone('Trip status is not waiting')
+
+        try:
+            trip_request_id = int(request.POST.get('request_id'))
+        except (ValueError, TypeError):
+            return HttpResponseBadRequest()
+
+        # TODO: change the following line to "action = request.POST.get('action')" and handle action field in template
+        action = request.POST.get('action', 'accept')
+        if action == 'accept':
+            return TripRequestManager.accept_request_if_trip_is_not_full(request, trip, trip_request_id)
+        elif action == 'decline':
+            return TripRequestManager.decline_request(request, trip, trip_request_id)
+        else:
+            return HttpResponseBadRequest('Unknown action')
+
+    @staticmethod
+    @atomic
+    def accept_request_if_trip_is_not_full(request, trip, trip_request_id):
+        if trip.capacity > trip.passengers.count():
+            trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+            if trip_request.status != TripRequest.PENDING_STATUS:
+                return HttpResponseBadRequest('Request is not pending')
+            trip_request.status = TripRequest.ACCEPTED_STATUS
+            trip_request.save()
+            Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
+                                         source=trip_request.source, destination=trip_request.destination)
+            trip_request.containing_set.close()
+            return TripRequestManager.show_trip_requests(request, trip)
+        return TripRequestManager.show_trip_requests(request, trip, "Trip is full")
+
+    @staticmethod
+    @atomic
+    def decline_request(request, trip, trip_request_id):
+        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        if trip_request.status != TripRequest.PENDING_STATUS:
+            return HttpResponseBadRequest('Request is not pending')
+        trip_request.status = TripRequest.DECLINED_STATUS
+        trip_request.save()
+        return TripRequestManager.show_trip_requests(request, trip)
+
+
 class TripHandler(View):
     @method_decorator(login_required)
     def get(self, request, trip_id):
-        raise NotImplementedError()
+        return HttpResponse('Not Implemented yet')
 
     @method_decorator(login_required)
     def post(self, request):
@@ -98,83 +201,6 @@ class TripGroupsManager(View):
     @staticmethod
     def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
         return point_distance(first_point, second_point).meters <= threshold
-
-
-class OwnedTripsManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
-        trips = request.user.driving_trips.all()
-        return render(request, 'trip_manager.html', {'trips': trips})
-
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
-
-class PublicTripsManager(View):
-    @staticmethod
-    def get(request):
-        trips = Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))
-        return render(request, 'trip_manager.html', {'trips': trips})
-
-    @staticmethod
-    def post(request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
-
-class CategorizedTripsManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
-        user = request.user
-        include_public_groups = request.GET.get('include-public-groups') == 'true'
-        if include_public_groups:
-            groups = (user.group_set.all() | Group.objects.filter(is_private=False)).distinct()
-        else:
-            groups = user.group_set.all()
-        return render(request, 'trips_categorized_by_group.html', {'groups': groups})
-
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
-
-class GroupTripsManager(View):
-    @method_decorator(login_required)
-    def get(self, request, group_id):
-        group = get_object_or_404(Group, id=group_id)
-        if group.is_private:
-            if not Membership.objects.filter(member=request.user, group=group).exists():
-                return HttpResponseForbidden()
-        return render(request, 'trip_manager.html', {'trips': group.trip_set.all()})
-
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
-
-class ActiveTripsManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
-        user = request.user
-        trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct().exclude(status=Trip.DONE_STATUS)
-        return render(request, 'trip_manager.html', {'trips': trips})
-
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
-
-
-class AvailableTripsManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
-        user = request.user
-        trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
-            is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
-        return render(request, 'trip_manager.html', {'trips': trips})
-
-    @method_decorator(login_required)
-    def post(self, request):
-        return HttpResponseNotAllowed('Method Not Allowed')
 
 
 class SearchTripsManger(View):
@@ -237,3 +263,55 @@ class SearchTripsManger(View):
                    'destination_lng' in post_data
         else:
             return True
+
+
+@login_required
+@only_get_allowed
+def get_owned_trips_view(request):
+    trips = request.user.driving_trips.all()
+    return render(request, 'trip_manager.html', {'trips': trips})
+
+
+@only_get_allowed
+def get_public_trips_view(request):
+    trips = Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))
+    return render(request, 'trip_manager.html', {'trips': trips})
+
+
+@login_required
+@only_get_allowed
+def get_categorized_trips_view(request):
+    user = request.user
+    include_public_groups = request.GET.get('include-public-groups') == 'true'
+    if include_public_groups:
+        groups = (user.group_set.all() | Group.objects.filter(is_private=False)).distinct()
+    else:
+        groups = user.group_set.all()
+    return render(request, 'trips_categorized_by_group.html', {'groups': groups})
+
+
+@login_required
+@only_get_allowed
+def get_group_trips_view(request, group_id):
+    group = get_object_or_404(Group, id=group_id)
+    if group.is_private:
+        if not Membership.objects.filter(member=request.user, group=group).exists():
+            return HttpResponseForbidden()
+    return render(request, 'trip_manager.html', {'trips': group.trip_set.all()})
+
+
+@login_required
+@only_get_allowed
+def get_active_trips_view(request):
+    user = request.user
+    trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct().exclude(status=Trip.DONE_STATUS)
+    return render(request, 'trip_manager.html', {'trips': trips})
+
+
+@login_required
+@only_get_allowed
+def get_available_trips_view(request):
+    user = request.user
+    trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
+        is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
+    return render(request, 'trip_manager.html', {'trips': trips})

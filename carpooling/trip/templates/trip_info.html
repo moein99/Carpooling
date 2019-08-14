@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block body %}
+    {% if trip.trip_description %}
+        <p>{{ trip.trip_description }}</p>
+    {% endif %}
+    <p>Source location is {{ trip.source }}</p>
+    <p>Destination location is {{ trip.destination }}</p>
+
+    {% if trip.is_private %}
+        <p> Trip is a private trip </p>
+    {% else %}
+        <p> Trip is a public trip </p>
+    {% endif %}
+    <p>Capacity of trip is {{ trip.capacity }}</p>
+    <p> Trip will start about {{ trip.start_estimation }} </p>
+    <p> Trip will end about {{ trip.end_estimation }} </p>
+
+    {% if request.user == trip.car_provider %}
+        <a href="{% url 'trip:request' trip.id %}"> see requests </a>
+    {% else %}
+        <a href="{% url 'trip:request' trip.id %}"> ask to join trip </a>
+    {% endif %}
+{% endblock %}

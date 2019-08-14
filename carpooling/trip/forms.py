@@ -1,7 +1,8 @@
+from dateutil.parser import parse
 from django import forms
 
-from trip.models import Trip
-from dateutil.parser import parse
+from account.models import Member
+from trip.models import Trip, TripRequest, TripRequestSet
 
 
 class TripForm(forms.ModelForm):
@@ -47,3 +48,31 @@ class TripForm(forms.ModelForm):
             return True
         else:
             return False
+
+
+class TripRequestForm(forms.ModelForm):
+    create_new_request_set = forms.BooleanField(required=False, initial=False)
+    new_request_set_title = forms.CharField(max_length=50, required=False)
+
+    def __init__(self, user, trip=None, *args, **kwargs):
+        super(TripRequestForm, self).__init__(*args, **kwargs)
+        self.user = user
+        self.trip = trip
+        self.fields['containing_set'].required = False
+        self.fields['containing_set'].queryset = user.trip_request_sets.all()
+
+    def clean(self):
+        create_new_request_set = self.cleaned_data['create_new_request_set']
+        containing_set = self.cleaned_data['containing_set']
+        new_request_set_title = self.cleaned_data['new_request_set_title']
+        if not create_new_request_set and containing_set is None:
+            raise forms.ValidationError('No set assigned to the request')
+        if create_new_request_set and new_request_set_title == '':
+            self.cleaned_data['new_request_set_title'] = 'No Title'
+        if containing_set is not None and containing_set.closed:
+            raise forms.ValidationError('Selected request set is closed')
+        return self.cleaned_data
+
+    class Meta:
+        model = TripRequest
+        fields = ['containing_set', 'create_new_request_set', 'new_request_set_title']

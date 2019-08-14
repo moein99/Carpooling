@@ -1,5 +1,4 @@
 from django.urls import path
-
 from account.views.mail import MailManager
 from account.views.profile import SignUp, UserProfileManager
 from account.views.report import ReportManager
