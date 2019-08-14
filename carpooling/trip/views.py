@@ -216,7 +216,7 @@ class SearchTripsManger(View):
         return Point(point1.x - point2.x, point1.y - point2.y)
 
     @staticmethod
-    def search_sort(query, source: Point, destination: Point):
+    def get_query_score(query, source: Point, destination: Point):
         source_to_trip_source = SearchTripsManger.subtract_two_point(query.source, source)
         destination_to_trip_destination = SearchTripsManger.subtract_two_point(query.destination, destination)
         trip_source_to_destination = SearchTripsManger.subtract_two_point(query.destination, query.source)
@@ -250,8 +250,8 @@ class SearchTripsManger(View):
         trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
             status=Trip.DONE_STATUS)
         trips = sorted(trips, key=lambda query: (
-            SearchTripsManger.search_sort(query, source=source, destination=destination)))
-        trips = filter(lambda query: SearchTripsManger.search_sort(query, source, destination) != np.inf, trips)
+            SearchTripsManger.get_query_score(query, source=source, destination=destination)))
+        trips = filter(lambda query: SearchTripsManger.get_query_score(query, source, destination) != np.inf, trips)
         return render(request,
                       "trips_viewer.html",
                       {"trips": trips}
