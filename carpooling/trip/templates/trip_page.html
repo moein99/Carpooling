@@ -5,31 +5,33 @@
     {% if trip.status == 'dn' %}
         <h1> Trip Done ^^ </h1>
         <a href="{% url 'trip:trip_vote' trip_id %}">Vote</a>
-        ChatRoom
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
         PlayList
     {% endif %}
 
     {% if trip.status == 'in' %}
         <h1> Trip In Route ^^ </h1>
-        ChatRoom
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
         PlayList
     {% endif %}
 
     {% if trip.status == 'cl' %}
         <h1> Trip Is Closed ^^ </h1>
-        ChatRoom
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
         PlayList
     {% endif %}
 
     {% if trip.status == 'wa' %}
         <h1> Trip Is Waiting ^^ </h1>
-        ChatRoom
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
         PlayList
     {% endif %}
+
+
 
 {% endblock %}
 
