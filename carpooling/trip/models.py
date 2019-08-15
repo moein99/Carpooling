@@ -1,9 +1,7 @@
-from django.core.exceptions import ValidationError
+from django.contrib.gis.db import models as gis_models
 from django.core.validators import MaxValueValidator
 from django.db import models
-from django.contrib.gis.db import models as gis_models
 
-# Create your models here.
 from account.models import Member
 from group.models import Group
 
@@ -23,7 +21,6 @@ class Trip(models.Model):
     destination = gis_models.PointField()
     is_private = models.BooleanField(default=False)
     passengers = models.ManyToManyField(Member, through="Companionship", related_name='partaking_trips')
-    requests = models.ManyToManyField(Member, through="TripRequest", related_name='requests')
     groups = models.ManyToManyField(Group, through="TripGroups")
     car_provider = models.ForeignKey(Member, on_delete=models.SET_NULL, related_name='driving_trips', null=True)
     status = models.CharField(max_length=2, choices=STATUS_CHOICES)
@@ -46,8 +43,42 @@ class TripGroups(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
 
 
+class TripRequestSet(models.Model):
+    title = models.CharField(max_length=50, null=True)
+    applicant = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='trip_request_sets')
+    closed = models.BooleanField(default=False)
+
+    def close(self):
+        self.requests.exclude(status=TripRequest.ACCEPTED_STATUS).update(status=TripRequest.CANCELED_STATUS)
+        self.closed = True
+        self.save()
+
+    def __str__(self):
+        return str(self.id) + '' + self.title
+
+
 class TripRequest(models.Model):
-    applicant = models.ForeignKey(Member, on_delete=models.CASCADE)
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
+    PENDING_STATUS = 'p'
+    ACCEPTED_STATUS = 'a'
+    CANCELED_STATUS = 'c'
+    DECLINED_STATUS = 'd'
+
+    STATUS_CHOICES = [
+        (PENDING_STATUS, 'pending'),
+        (ACCEPTED_STATUS, 'accepted'),
+        (CANCELED_STATUS, 'canceled'),
+        (DECLINED_STATUS, 'declined')
+    ]
+    containing_set = models.ForeignKey(TripRequestSet, on_delete=models.CASCADE, related_name='requests')
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='requests')
     source = gis_models.PointField()
     destination = gis_models.PointField()
+    creation_time = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
+
+
+class Vote(models.Model):
+    receiver = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="received_votes")
+    sender = models.ForeignKey(Member, on_delete=models.SET_NULL, related_name="sent_votes", null=True)
+    trip = models.ForeignKey(Trip, on_delete=models.SET_NULL, null=True)
+    rate = models.FloatField()

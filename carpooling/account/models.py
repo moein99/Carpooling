@@ -38,4 +38,3 @@ class Comment(models.Model):
     sender = models.ForeignKey('Member', on_delete=models.SET_NULL, related_name="sent_comments", null=True)
     message = models.TextField(max_length=300)
     sent_time = models.DateTimeField(auto_now_add=True)
-

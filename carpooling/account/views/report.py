@@ -10,17 +10,17 @@ from account.forms import ReportForm
 
 class ReportManager(View):
     @method_decorator(login_required)
-    def get(self, request, user_id):
-        if user_id == request.user.id:
+    def get(self, request, member_id):
+        if member_id == request.user.id:
             return HttpResponseForbidden("You can not report your self")
         return render(request, "report.html", {"form": ReportForm()})
 
     @method_decorator(login_required)
-    def post(self, request, user_id):
-        if user_id == request.user.id:
+    def post(self, request, member_id):
+        if member_id == request.user.id:
             return HttpResponseForbidden("You can not report your self")
-        if ReportManager.create_report(request.user.id, user_id, request.POST):
-            return redirect(reverse('account:user_profile', kwargs={'user_id': user_id}))
+        if ReportManager.create_report(request.user.id, member_id, request.POST):
+            return redirect(reverse('account:user_profile', kwargs={'user_id': member_id}))
         return render(request, "report.html", {"form": ReportForm()})
 
     @staticmethod
