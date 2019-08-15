@@ -24,9 +24,10 @@ class HomeManager(View):
         return HttpResponseNotAllowed('Method Not Allowed')
 
 
-class SearchPeopleManager(View):
-    @method_decorator(login_required)
-    def get(self, request, query):
+class SearchPeopleManager:
+    @staticmethod
+    @login_required
+    def search_people_view(request, query):
         result = {'people': []}
         for member in Member.objects.all():
             if query in member.username or query in member.first_name or query in member.last_name:

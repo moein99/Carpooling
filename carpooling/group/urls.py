@@ -11,5 +11,5 @@ urlpatterns = [
     path('public/', PublicGroupsManager.as_view(), name="public_groups"),
     path('<int:group_id>/', GroupManager.as_view(), name="group"),
     path('<int:group_id>/member/', GroupMembersManager.as_view(), name="group_members"),
-    path('search/<query>', SearchGroupManager.as_view(), name="group_search"),
+    path('search/<query>', SearchGroupManager.search_group_view, name="group_search"),
 ]

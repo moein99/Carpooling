@@ -210,9 +210,7 @@ class AddMemberToGroupTest(TestCase):
 
 class SearchGroupsTest(TestCase):
     def setUp(self):
-        user = mommy.make(Member, username='test_user')
-        user.set_password('1234')
-        user.save()
+        Member.objects.create_user(username='test_user', password='1234')
         self.client = Client()
         self.client.login(username="test_user", password="1234")
 

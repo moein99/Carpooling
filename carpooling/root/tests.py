@@ -8,17 +8,11 @@ from model_mommy import mommy
 
 class SearchPeopleTest(TestCase):
     def setUp(self):
-        SearchPeopleTest.make_user("moein", "1234")
-        SearchPeopleTest.make_user("sepehr", "1234")
-        SearchPeopleTest.make_user("sajjad", "1234")
-        SearchPeopleTest.make_user("sepi", "1234")
+        Member.objects.create_user(username='moein', password='1234')
+        Member.objects.create_user(username='sepehr', password='1234')
+        Member.objects.create_user(username='sajjad', password='1234')
+        Member.objects.create_user(username='sepi', password='1234')
         self.client = Client()
-
-    @staticmethod
-    def make_user(username, password):
-        user = mommy.make(Member, username=username)
-        user.set_password(password)
-        user.save()
 
     def test_search_members(self):
         self.client.login(username="moein", password="1234")
