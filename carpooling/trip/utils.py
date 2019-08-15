@@ -1,7 +1,6 @@
 import os
 
 import requests
-from enum import Enum
 import spotipy
 from django.utils import timezone
 
@@ -14,8 +13,12 @@ proxy = 'proxy.roo.cloud:3128'
 class ItemType:
     TRACK = "track"
     ALBUM = "album"
+    ALBUMS = "albums"
     ARTIST = "artist"
+    ARTISTS = "artists"
     PLAYLIST = "playlist"
+    TRACKS = "tracks"
+    ITEMS = "items"
 
 
 class SpotifyAgent:
@@ -24,7 +27,7 @@ class SpotifyAgent:
         self.token_start_time = None
         self.expiration_time = None
         self.refresh_token = SPOTIFY_REFRESH_TOKEN
-        self.token_api = "https://accounts.spotify.com/api/token"
+        self.TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token"
         SpotifyAgent.set_proxy()
         self.refresh_access_token()
         self.spotify = spotipy.Spotify(auth=self.access_token)
@@ -38,7 +41,7 @@ class SpotifyAgent:
 
     def refresh_access_token(self):
         data, headers = self.get_auth_data_and_headers()
-        response = requests.post(url=self.token_api, data=data, headers=headers).json()
+        response = requests.post(url=self.TOKEN_ENDPOINT, data=data, headers=headers).json()
         if 'access_token' in response:
             self.set_new_access_token(response)
         else:
@@ -72,13 +75,13 @@ class SpotifyAgent:
     def search_items(self, query, item_type):
         result = []
         response = self.spotify.search(q=item_type + ':' + query, type=item_type, limit=5)
-        for item in response[item_type + 's']['items']:
+        for item in response[item_type][ItemType.ITEMS]:
             result.append(SpotifyAgent.get_item_json(item, item_type))
         return result
 
     @staticmethod
     def get_item_json(item, item_type):
-        artists = ' '.join(SpotifyAgent.get_artists_name(item['artists']))
+        artists = ' '.join(SpotifyAgent.get_artists_name(item[ItemType.ARTISTS]))
         description = "[#] ".replace('#', item_type) + artists
         return {"id": item['id'], "title": item['name'], 'type': item_type,
                 "description": description}
@@ -98,10 +101,10 @@ class SpotifyAgent:
             self.spotify.user_playlist_add_tracks(SPOTIFY_USERNAME, playlist_id, new_tracks_ids)
 
     def get_album_tracks_ids(self, album_id):
-        tracks = self.spotify.album_tracks(album_id)['items']
+        tracks = self.spotify.album_tracks(album_id)[ItemType.ITEMS]
         return [track['id'] for track in tracks]
 
     def filter_already_added_tracks(self, new_tracks_ids, playlist_id):
-        playlist_tracks = self.spotify.user_playlist(SPOTIFY_USERNAME, playlist_id=playlist_id, fields=['tracks'])
-        already_added_tracks_ids = [track['track']['id'] for track in playlist_tracks['tracks']['items']]
+        playlist_tracks = self.spotify.user_playlist(SPOTIFY_USERNAME, playlist_id=playlist_id, fields=[ItemType.TRACKS])
+        already_added_tracks_ids = [track[ItemType.TRACK]['id'] for track in playlist_tracks[ItemType.TRACKS][ItemType.ITEMS]]
         return [track_id for track_id in new_tracks_ids if track_id not in already_added_tracks_ids]

@@ -8,8 +8,6 @@ from .utils import ItemType
 from trip.models import Trip
 from .utils import SpotifyAgent
 
-spotify_agent = SpotifyAgent()
-
 
 def spotify_search(request, trip_id, query):
     if request.method == "GET":
@@ -21,20 +19,21 @@ def spotify_search(request, trip_id, query):
         return HttpResponseBadRequest('Method not implemented')
 
 
+def search(query):
+    search_results = []
+    spotify_agent = SpotifyAgent()
+    search_results.extend(spotify_agent.search_items(query, ItemType.TRACKS))
+    search_results.extend(spotify_agent.search_items(query, ItemType.ALBUMS))
+    return search_results
+
+
 def add_to_playlist(request, trip_id, item_id, item_type):
     if request.method == "GET":
         playlist_id = Trip.objects.get(id=trip_id).playlist_id
-        spotify_agent.add_item_to_playlist(playlist_id, item_id, item_type)
+        SpotifyAgent().add_item_to_playlist(playlist_id, item_id, item_type)
         return redirect(reverse('trip:trip_music_player', kwargs={"trip_id": trip_id}))
     else:
         return HttpResponseBadRequest("method not implemented")
-
-
-def search(query):
-    search_results = []
-    search_results.extend(spotify_agent.search_items(query, ItemType.TRACK))
-    search_results.extend(spotify_agent.search_items(query, ItemType.ALBUM))
-    return search_results
 
 
 def append_add_to_playlist_url(items, trip_id):
