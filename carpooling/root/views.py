@@ -17,8 +17,6 @@ class HomeManager(View):
         if request.user.is_authenticated:
             unread_mails = Mail.objects.filter(is_mail_seen=False, receiver=request.user).count()
             data['unread_mails'] = unread_mails
-        members = Member.objects.all()
-        data['members'] = members
         return render(request, 'home.html', data)
 
     @staticmethod

@@ -247,8 +247,8 @@ class SearchTripsManger(View):
     @staticmethod
     def do_search(request):
         data = request.GET
-        source = Point(float(data['source_lat']), float(data['source_lng']))
-        destination = Point(float(data['destination_lat']), float(data['destination_lng']))
+        source = extract_source(data)
+        destination = extract_destination(data)
         trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
             status=Trip.DONE_STATUS)
         if data['start_time'] != "-1":
