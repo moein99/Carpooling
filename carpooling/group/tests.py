@@ -1,6 +1,7 @@
-from django.test import TestCase
+import json
 
-# Create your tests here.
+from django.test import TestCase, Client
+
 from django.urls import reverse
 from model_mommy import mommy
 
@@ -9,7 +10,7 @@ from group.forms import GroupForm
 from group.models import Group, Membership
 
 
-class GroupViewTestCase(TestCase):
+class GroupViewTest(TestCase):
     def setUp(self):
         user = mommy.make(Member, username='test_user')
         user.set_password('1234')
@@ -130,7 +131,8 @@ class AddMemberToGroupTest(TestCase):
         user = Member.objects.get(username='test_user')
         group = mommy.make(Group, is_private=False)
         mommy.make(Membership, group=group, member=user)
-        response = self.client.post(path=reverse('group:group', kwargs={'group_id': group.id}), data={'action': 'leave'})
+        response = self.client.post(path=reverse('group:group', kwargs={'group_id': group.id}),
+                                    data={'action': 'leave'})
         test_membership = Membership.objects.filter(group_id=group.id, member__username='test_user')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(0, len(test_membership))
@@ -204,3 +206,21 @@ class AddMemberToGroupTest(TestCase):
         group = mommy.make(Group, is_private=is_private)
         member = mommy.make(Member)
         return member, group
+
+
+class SearchGroupsTest(TestCase):
+    def setUp(self):
+        Member.objects.create_user(username='test_user', password='1234')
+        self.client = Client()
+        self.client.login(username="test_user", password="1234")
+
+    def test_search_groups(self):
+        mommy.make(Group, title='bazaar')
+        mommy.make(Group, title='cafebazaar')
+        mommy.make(Group, title='divar')
+        response = self.client.get(reverse('group:group_search', kwargs={'query': 'bazaar'}))
+        response_in_json = json.loads(response.content)
+        result_groups_titles = [group['title'] for group in response_in_json['groups']]
+        self.assertTrue('bazaar' in result_groups_titles and
+                        'cafebazaar' in result_groups_titles and
+                        'divar' not in result_groups_titles)

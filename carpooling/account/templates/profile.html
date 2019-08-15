@@ -43,6 +43,11 @@
                     {% endif %}
 
                 {% endif %}
+
+                {% if rate != -1 %}
+                    <div style="float: right" class="ui star rating" id="user_rate"></div>
+                {% endif %}
+
             </div>
             <div >
                 {% if member.profile_picture %}
@@ -98,4 +103,14 @@
             </div>
         {% endif %}
     </div>
+
+    <script>
+        $('#user_rate').rating({
+            initialRating: {{ rate }},
+            maxRating: 5,
+          });
+        $('#user_rate').rating('disable');
+    </script>
+
+    
 {% endblock %}

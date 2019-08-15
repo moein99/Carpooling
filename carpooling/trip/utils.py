@@ -3,7 +3,7 @@ import os
 import requests
 import spotipy
 from django.utils import timezone
-
+from django.contrib.gis.geos import Point
 from carpooling.settings import SPOTIFY_CLIENT_ID, SPOTIFY_USERNAME, SPOTIFY_CLIENT_SECRET, \
     SPOTIFY_REFRESH_TOKEN
 
@@ -75,7 +75,7 @@ class SpotifyAgent:
     def search_items(self, query, item_type):
         result = []
         response = self.spotify.search(q=item_type + ':' + query, type=item_type, limit=5)
-        for item in response[item_type][ItemType.ITEMS]:
+        for item in response[item_type + 's'][ItemType.ITEMS]:
             result.append(SpotifyAgent.get_item_json(item, item_type))
         return result
 
@@ -108,3 +108,11 @@ class SpotifyAgent:
         playlist_tracks = self.spotify.user_playlist(SPOTIFY_USERNAME, playlist_id=playlist_id, fields=[ItemType.TRACKS])
         already_added_tracks_ids = [track[ItemType.TRACK]['id'] for track in playlist_tracks[ItemType.TRACKS][ItemType.ITEMS]]
         return [track_id for track_id in new_tracks_ids if track_id not in already_added_tracks_ids]
+
+
+def extract_source(post_data):
+    return Point(float(post_data['source_lat']), float(post_data['source_lng']))
+
+
+def extract_destination(post_data):
+    return Point(float(post_data['destination_lat']), float(post_data['destination_lng']))

@@ -22,8 +22,8 @@ def spotify_search(request, trip_id, query):
 def search(query):
     search_results = []
     spotify_agent = SpotifyAgent()
-    search_results.extend(spotify_agent.search_items(query, ItemType.TRACKS))
-    search_results.extend(spotify_agent.search_items(query, ItemType.ALBUMS))
+    search_results.extend(spotify_agent.search_items(query, ItemType.TRACK))
+    search_results.extend(spotify_agent.search_items(query, ItemType.ALBUM))
     return search_results
 
 
