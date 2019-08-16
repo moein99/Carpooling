@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
 from django.db.models import Q, DateTimeField
 from django.db.transaction import atomic
-from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse
+from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse, HttpResponseNotAllowed
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
+from .utils import SpotifyAgent
 from numpy.linalg import norm
 
 from account.models import Member
@@ -48,6 +49,8 @@ class TripCreationHandler(View):
             trip_obj.car_provider = car_provider
             trip_obj.status = Trip.WAITING_STATUS
             trip_obj.source, trip_obj.destination = source, destination
+            spotify_agent = SpotifyAgent()
+            trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
             trip_obj.save()
             return trip_obj
         return None
@@ -165,6 +168,7 @@ class TripHandler(View):
     def post(self, request):
         raise NotImplementedError()
 
+
 class TripVoteHandler(View):
     @method_decorator(login_required())
     def get(self, request, trip_id):
@@ -190,7 +194,6 @@ class TripVoteHandler(View):
         object = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip=trip_id)
         object.save()
         return render(request, "trip_vote_manage.html")
-
 
 
 class TripGroupsManager(View):
@@ -351,3 +354,10 @@ def get_available_trips_view(request):
     trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
         is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
     return render(request, 'trip_manager.html', {'trips': trips})
+
+
+@login_required
+@only_get_allowed
+def get_playlist_view(request, trip_id):
+    playlist_id = Trip.objects.get(id=trip_id).playlist_id
+    return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})
