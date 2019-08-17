@@ -160,10 +160,11 @@ class TripRequestManager(View):
 
 
 @login_required
+@only_get_allowed
 def get_trip_page(request, trip_id):
     trip = get_object_or_404(Trip, id=trip_id)
-    if trip.car_provider_id == request.user.id or Companionship.objects.filter(trip_id=trip_id,
-                                                                               member_id=request.user.id).exists():
+
+    if Trip.get_accessible_trips_for(request.user).filter(id=trip_id).exists():
         return render(request, 'trip_page.html', {
             'trip': trip,
         })
@@ -171,9 +172,8 @@ def get_trip_page(request, trip_id):
         return HttpResponseForbidden()
 
 
-
-class TripVoteHandler(View):
-    @method_decorator(login_required())
+class TripVoteManager(View):
+    @method_decorator(login_required)
     def get(self, request, trip_id):
         members = []
         rate = []
@@ -184,19 +184,36 @@ class TripVoteHandler(View):
         for i in range(len(members)):
             try:
                 object = Vote.objects.get(sender=request.user, receiver=members[i])
-                rate[i] = object.rate
+                rate.append(object.rate)
             except Vote.DoesNotExist:
-                rate[i] = None
+                rate.append(None)
         members_rate = {}
         for i in range(len(members)):
             members_rate[members[i]] = rate[i]
         return render(request, 'trip_vote_manage.html', {'members_rate': members_rate, 'trip_id': trip_id})
 
-    @method_decorator(login_required())
-    def post(self, request, receiver, rate, trip_id):
-        object = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip=trip_id)
+    @method_decorator(login_required)
+    def post(self, request, trip_id):
+        receiver = request.POST.get('receiver')
+        rate = request.POST.get('rate')
+        object = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip_id=trip_id)
         object.save()
-        return render(request, "trip_vote_manage.html")
+        members = []
+        rate = []
+        trip = Trip.objects.get(id=trip_id)
+        members.extend(trip.passengers.all())
+        members.append(trip.car_provider)
+        members.remove(request.user)
+        for i in range(len(members)):
+            try:
+                object = Vote.objects.get(sender=request.user, receiver=members[i])
+                rate.append(object.rate)
+            except Vote.DoesNotExist:
+                rate.append(None)
+        members_rate = {}
+        for i in range(len(members)):
+            members_rate[members[i]] = rate[i]
+        return render(request, "trip_vote_manage.html", {'members_rate': members_rate, 'trip_id': trip_id})
 
 
 class TripGroupsManager(View):
