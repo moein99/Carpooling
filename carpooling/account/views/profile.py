@@ -11,6 +11,7 @@ from django.views.generic.base import View
 
 from account.forms import *
 from account.models import Member
+from root.decorators import check_request_type
 from trip.models import Vote
 
 
@@ -86,12 +87,10 @@ class UserProfileManager(View):
             return False
 
     @method_decorator(login_required)
+    @check_request_type
     def post(self, request, user_id):
-        request_type = request.POST.get('type', 'POST')
-        if request_type == 'PUT':
-            return self.put(request, user_id)
         if UserProfileManager.create_comment(request.user, Member.objects.get(id=user_id), request.POST):
-            return redirect(reverse("account:user_profile", kwargs={'member_id': user_id}))
+            return redirect(reverse("account:user_profile", kwargs={'user_id': user_id}))
         return HttpResponseBadRequest("Invalid request")
 
     @staticmethod
@@ -111,7 +110,7 @@ class UserProfileManager(View):
         if user_id != request.user.id:
             return HttpResponseForbidden()
         UserProfileManager.update_member_profile(request)
-        return redirect(reverse('account:user_profile', kwargs={'member_id': request.user.id}))
+        return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
 
     @staticmethod
     def update_member_profile(request):

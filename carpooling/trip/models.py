@@ -1,6 +1,7 @@
 from django.contrib.gis.db import models as gis_models
 from django.core.validators import MaxValueValidator
 from django.db import models
+from django.db.models import Q
 
 from account.models import Member
 from group.models import Group
@@ -29,6 +30,11 @@ class Trip(models.Model):
     end_estimation = models.DateTimeField()
     trip_description = models.CharField(max_length=200, null=True)
     playlist_id = models.CharField(max_length=22)
+
+    @classmethod
+    def get_accessible_trips_for(cls, user):
+        return cls.objects.filter(Q(is_private=False) | Q(groups__membership__member=user) | Q(car_provider=user) | Q(
+            companionship__member=user))
 
 
 class Companionship(models.Model):

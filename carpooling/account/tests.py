@@ -74,7 +74,7 @@ class EditProfileTest(TestCase):
 
     def test_edit_profile_not_put_request(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id':1}),
+        response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id': 1}),
                                     data={'first_name': 'sepehr', 'phone_number': '09123456789', 'last_name': 'spaner'})
         self.assertEqual(response.status_code, 400)
 
@@ -88,7 +88,7 @@ class ReportTest(TestCase):
     def test_reporting(self):
         self.client.login(username='testuser', password='majid123')
         member = mommy.make(Member)
-        response = self.client.post(path=reverse('account:report_user', kwargs={'user_id': member.id}),
+        response = self.client.post(path=reverse('account:report_user', kwargs={'member_id': member.id}),
                                     data={'description': 'he is a bad guy'})
         self.assertEqual(response.status_code, 302)
         test_report = Report.objects.filter(reported_id=member.id)
@@ -96,14 +96,14 @@ class ReportTest(TestCase):
 
     def test_reporting_anonymus(self):
         member = mommy.make(Member)
-        response = self.client.post(path=reverse('account:report_user', kwargs={'user_id': member.id}),
+        response = self.client.post(path=reverse('account:report_user', kwargs={'member_id': member.id}),
                                     data={'description': 'he is a bad guy'})
         self.assertEqual(response.status_code, 302)
 
     def test_reporting_self(self):
         self.client.login(username='testuser', password='majid123')
         member = Member.objects.get(username='testuser')
-        response = self.client.post(path=reverse('account:report_user', kwargs={'user_id': member.id}),
+        response = self.client.post(path=reverse('account:report_user', kwargs={'member_id': member.id}),
                                     data={'description': 'he is a bad guy'})
         self.assertEqual(response.status_code, 403)
 
