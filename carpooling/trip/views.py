@@ -1,6 +1,9 @@
+from datetime import datetime
+
 import numpy as np
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.contrib.gis.geos import Point
+from django.db.models import Q, DateTimeField
 from django.db.transaction import atomic
 from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse, HttpResponseNotAllowed
 from django.http import HttpResponseForbidden
@@ -9,8 +12,8 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
-from geopy import Point
 from geopy.distance import distance as point_distance
+from .utils import SpotifyAgent
 from numpy.linalg import norm
 
 from account.models import Member
@@ -46,6 +49,8 @@ class TripCreationHandler(View):
             trip_obj.car_provider = car_provider
             trip_obj.status = Trip.WAITING_STATUS
             trip_obj.source, trip_obj.destination = source, destination
+            spotify_agent = SpotifyAgent()
+            trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
             trip_obj.save()
             return trip_obj
         return None
@@ -166,6 +171,7 @@ def get_trip_page(request, trip_id):
         return HttpResponseForbidden()
 
 
+
 class TripVoteHandler(View):
     @method_decorator(login_required())
     def get(self, request, trip_id):
@@ -238,7 +244,7 @@ class SearchTripsManger(View):
     @method_decorator(login_required)
     def get(self, request):
         if SearchTripsManger.is_valid_search_parameter(request.GET):
-            return SearchTripsManger.do_search(request) if request.GET else render(request, "search_trip")
+            return SearchTripsManger.do_search(request) if request.GET else render(request, "search_trip.html")
         return HttpResponseBadRequest()
 
     @staticmethod
@@ -275,17 +281,16 @@ class SearchTripsManger(View):
     @staticmethod
     def do_search(request):
         data = request.GET
-        source = Point(float(data['source_lat']), float(data['source_lng']))
-        destination = Point(float(data['destination_lat']), float(data['destination_lng']))
+        source = extract_source(data)
+        destination = extract_destination(data)
         trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
             status=Trip.DONE_STATUS)
+        if data['start_time'] != "-1":
+            trips = SearchTripsManger.filter_by_dates(data['start_time'], data['end_time'], trips)
         trips = sorted(trips, key=lambda query: (
             SearchTripsManger.get_query_score(query, source=source, destination=destination)))
         trips = filter(lambda query: SearchTripsManger.get_query_score(query, source, destination) != np.inf, trips)
-        return render(request,
-                      "trips_viewer.html",
-                      {"trips": trips}
-                      )
+        return render(request, "trips_viewer.html", {"trips": trips})
 
     @staticmethod
     def is_valid_search_parameter(post_data):
@@ -294,6 +299,12 @@ class SearchTripsManger(View):
                    'destination_lng' in post_data
         else:
             return True
+
+    @staticmethod
+    def filter_by_dates(start_date, end_date, trips_query_set):
+        search_start_time = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        search_end_time = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+        return trips_query_set.filter(start_estimation__gt=search_start_time, end_estimation__lt=search_end_time)
 
 
 @login_required
@@ -360,3 +371,10 @@ def get_chat_interface(request, trip_id):
         })
     else:
         return HttpResponseForbidden()
+
+
+@login_required
+@only_get_allowed
+def get_playlist_view(request, trip_id):
+    playlist_id = Trip.objects.get(id=trip_id).playlist_id
+    return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})

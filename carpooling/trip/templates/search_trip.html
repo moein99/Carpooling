@@ -5,13 +5,41 @@
     <div id='map' style="width: 100em; height: 50em;"></div>
     <br>
 
-    <form method="GET">
+    <form method="GET" id="search_form">
         <input type="submit" value="Search">
         <input type="hidden" name="source_lat" id="id_source_lat" value="35.70">
         <input type="hidden" name="source_lng" id="id_source_lng" value="51.40">
         <input type="hidden" name="destination_lat" id="id_destination_lat" value="35.70">
         <input type="hidden" name="destination_lng" id="id_destination_lng" value="51.30">
-    </form>
+        <br>
+        <div id="dates_box" style="display: none">
+            <label for="start">Start Time: </label><input type="text" name="start_time" id="start" value="-1">
+            <label for="end">End Time: </label><input type="text" name="end_time" id="end" value="-1">
+        </div>
+        </form>
+
+    <button onclick="date_handler()" id="date_handler">Enter date for search</button>
+    <br>
+
+    <script>
+        function date_handler() {
+            var dates_box = document.getElementById("dates_box");
+            var start_time = document.getElementById("start");
+            var end_time = document.getElementById("end");
+            var date_btn = document.getElementById("date_handler");
+            if (dates_box.style.display === 'none') {
+                date_btn.innerText = "Remove dates for search";
+                dates_box.style.display = 'block';
+                start_time.value = "";
+                end_time.value = "";
+            } else {
+                date_btn.innerText = "Enter date for search";
+                dates_box.style.display = 'none';
+                start_time.value = "-1";
+                end_time.value = "-1";
+            }
+        }
+    </script>
 
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoibW9laW45OSIsImEiOiJjanlwdml1cmkxZjlvM25ub29ibWx6MXZ6In0.qeTaEdOQHEbgUXTapsbj0A';
