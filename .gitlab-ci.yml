@@ -2,7 +2,7 @@ stages :
     - run
     - test
 
-runserver:
+run:
     stage: run
     scriot:
         - echo "runserver"
