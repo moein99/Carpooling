@@ -153,5 +153,4 @@ LOGIN_URL = '/account/login/'
 USER_TZ = True
 
 DISTANCE_THRESHOLD = 100
-# BACKGROUND_TASK_RUN_ASYNC = True
 
