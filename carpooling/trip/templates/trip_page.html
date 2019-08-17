@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
 {% block body %}
-
+    <a href="{% url 'trip:trip_music_player' trip.id %}"> Music Player </a>
     {% if trip.status == 'dn' %}
         <h1> Trip Done ^^ </h1>
-        <a href="{% url 'trip:trip_vote' trip_id %}">Vote</a>
+        <a href="{% url 'trip:trip_vote' trip.id %}">Vote</a>
         <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
-        PlayList
+
 
     {% elif trip.status == 'in' %}
         <h1> Trip In Route ^^ </h1>
