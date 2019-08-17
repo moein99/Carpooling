@@ -1,0 +1,15 @@
+stages :
+    - runserver
+    - test
+
+runserver:
+    stage: runserver
+    scriot:
+        - echo "runserver"
+        - ./manage.py runserver 
+
+test :
+    stage: test
+    script:
+    - echo "testing"
+    - ./manage.py test
