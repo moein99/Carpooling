@@ -1,11 +1,16 @@
+import datetime
+
 import numpy as np
+from background_task import background
 from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
@@ -14,13 +19,13 @@ from geopy.distance import distance as point_distance
 from numpy.linalg import norm
 
 from account.models import Member
-from carpooling.settings import DISTANCE_THRESHOLD
+from carpooling.settings import DISTANCE_THRESHOLD, EMAIL_HOST_USER
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
 from trip.utils import extract_source, extract_destination
-from background_task import background
+from .tasks import notify
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
@@ -28,7 +33,9 @@ user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 class TripCreationHandler(View):
     @method_decorator(login_required)
     def get(self, request):
+        print(timezone.now())
         return render(request, 'trip_creation.html', {'form': TripForm()})
+
 
     @method_decorator(login_required)
     def post(self, request):
@@ -54,22 +61,7 @@ class TripCreationHandler(View):
 
     @staticmethod
     def set_notification(trip: Trip):
-        TripCreationHandler.do_at_time(trip.start_estimation, TripCreationHandler.notify)(trip.id)
-
-    @staticmethod
-    def notify(trip_id: int):
-        trip = Trip.objects.get(id=trip_id)
-        # todo: if trip have edit change it
-        for user in trip.passengers:
-            user.send_mail("start estimation", "your trip start estimation started !")
-        return
-
-    @staticmethod
-    def do_at_time(time, function):
-        @background(schedule=time)
-        def result(*args, **kwargs):
-            return function(*args, **kwargs)
-        return result
+        notify(trip.id, schedule=trip.start_estimation)
 
 
 class TripRequestManager(View):
