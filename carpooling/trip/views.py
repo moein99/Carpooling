@@ -3,9 +3,9 @@ from datetime import datetime
 import numpy as np
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
-from django.db.models import Q, DateTimeField
+from django.db.models import Q
 from django.db.transaction import atomic
-from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse, HttpResponseNotAllowed
+from django.http import HttpResponseBadRequest, HttpResponseGone
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -13,7 +13,6 @@ from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
-from .utils import SpotifyAgent
 from numpy.linalg import norm
 
 from account.models import Member
@@ -23,6 +22,8 @@ from root.decorators import check_request_type, only_get_allowed
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
 from trip.utils import extract_source, extract_destination
+from .tasks import notify
+from .utils import SpotifyAgent
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
@@ -32,6 +33,7 @@ class TripCreationHandler(View):
     def get(self, request):
         return render(request, 'trip_creation.html', {'form': TripForm()})
 
+
     @method_decorator(login_required)
     def post(self, request):
         trip = TripCreationHandler.create_trip(request.user, request.POST)
@@ -40,7 +42,7 @@ class TripCreationHandler(View):
         return HttpResponseBadRequest('Invalid Request')
 
     @staticmethod
-    def create_trip(car_provider, post_data):
+    def create_trip(car_provider: Member, post_data):
         source = extract_source(post_data)
         destination = extract_destination(post_data)
         trip_form = TripForm(data=post_data)
@@ -52,8 +54,13 @@ class TripCreationHandler(View):
             spotify_agent = SpotifyAgent()
             trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
             trip_obj.save()
+            TripCreationHandler.set_notification(trip_obj)
             return trip_obj
         return None
+
+    @staticmethod
+    def set_notification(trip: Trip):
+        notify(trip.id, schedule=trip.start_estimation)
 
 
 class TripRequestManager(View):

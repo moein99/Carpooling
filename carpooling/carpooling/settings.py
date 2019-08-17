@@ -33,6 +33,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'background_task',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -149,4 +150,7 @@ SPOTIFY_USERNAME = os.environ['SPOTIFY_USERNAME']
 LOGIN_URL = '/account/login/'
 
 
+USER_TZ = True
+
 DISTANCE_THRESHOLD = 100
+
