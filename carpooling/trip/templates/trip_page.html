@@ -8,23 +8,20 @@
         <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
         PlayList
-    {% endif %}
 
-    {% if trip.status == 'in' %}
+    {% elif trip.status == 'in' %}
         <h1> Trip In Route ^^ </h1>
         <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
         PlayList
-    {% endif %}
 
-    {% if trip.status == 'cl' %}
+    {% elif trip.status == 'cl' %}
         <h1> Trip Is Closed ^^ </h1>
         <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>
         PlayList
-    {% endif %}
 
-    {% if trip.status == 'wa' %}
+    {% elif trip.status == 'wa' %}
         <h1> Trip Is Waiting ^^ </h1>
         <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
         <br>

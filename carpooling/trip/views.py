@@ -156,17 +156,14 @@ class TripRequestManager(View):
 
 @login_required
 def get_trip_page(request, trip_id):
-    if request.method == "GET":
-        trip = get_object_or_404(Trip, id=trip_id)
-        if trip.car_provider_id == request.user.id or Companionship.objects.filter(trip_id=trip_id,
-                                                                                   member_id=request.user.id).exists():
-            return render(request, 'trip_page.html', {
-                'trip': trip,
-            })
-        else:
-            return HttpResponseForbidden()
+    trip = get_object_or_404(Trip, id=trip_id)
+    if trip.car_provider_id == request.user.id or Companionship.objects.filter(trip_id=trip_id,
+                                                                               member_id=request.user.id).exists():
+        return render(request, 'trip_page.html', {
+            'trip': trip,
+        })
     else:
-        return HttpResponseNotAllowed
+        return HttpResponseForbidden()
 
 
 class TripVoteHandler(View):
@@ -354,15 +351,12 @@ def get_available_trips_view(request):
 @login_required
 @only_get_allowed
 def get_chat_interface(request, trip_id):
-    if request.method == 'GET':
-        user = request.user
-        trip = get_object_or_404(Trip, id=trip_id)
-        if trip.car_provider_id == user.id or Companionship.objects.filter(trip_id=trip_id, member_id=user.id).exists():
-            return render(request, 'trip_chat.html', {
-                'trip_id': trip_id,
-                'username': user.username
-            })
-        else:
-            return HttpResponseForbidden()
+    user = request.user
+    trip = get_object_or_404(Trip, id=trip_id)
+    if trip.car_provider_id == user.id or Companionship.objects.filter(trip_id=trip_id, member_id=user.id).exists():
+        return render(request, 'trip_chat.html', {
+            'trip_id': trip_id,
+            'username': user.username
+        })
     else:
-        return HttpResponseNotAllowed()
+        return HttpResponseForbidden()
