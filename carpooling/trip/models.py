@@ -39,6 +39,7 @@ class Trip(models.Model):
     class TripIsFullException(Exception):
         pass
 
+
 class Companionship(models.Model):
     member = models.ForeignKey(Member, on_delete=models.CASCADE)
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE)

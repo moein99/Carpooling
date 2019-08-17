@@ -12,31 +12,31 @@
 
     {# I Hate JS #}
     <script>
-        let trips_list = document.getElementById('trips_list');
+        var trips_list = document.getElementById('trips_list');
         {% for trip in trips %}
-            let list_item = document.createElement('li');
+            var list_item = document.createElement('li');
             {% if trip.trip_description %}
-                let description = document.createElement('p');
+                var description = document.createElement('p');
                 description.appendChild(document.createTextNode('{{ trip.trip_description }}'));
                 list_item.appendChild(description);
             {% endif %}
-            let source = document.createElement('p');
+            var source = document.createElement('p');
             source.appendChild(document.createTextNode('Source location is {{ trip.source}}'));
-            let destination = document.createElement('p');
-            destination.appendChild(document.createTextNode('Destination location is {{ trip.source}}'));
-            let is_private = document.createElement('p');
+            var destination = document.createElement('p');
+            destination.appendChild(document.createTextNode('Destination location is {{ trip.destination}}'));
+            var is_private = document.createElement('p');
             {% if trip.is_private %}
                 is_private.appendChild(document.createTextNode('Trip is a private trip'));
             {% else %}
                 is_private.appendChild(document.createTextNode('Trip is a public trip'));
             {% endif %}
-            let capacity = document.createElement('p');
+            var capacity = document.createElement('p');
             capacity.appendChild(document.createTextNode('Capacity of trip is {{ trip.capacity }}'));
-            let starting_estimation = document.createElement('p');
+            var starting_estimation = document.createElement('p');
             starting_estimation.appendChild(document.createTextNode('Trip will start about {{ trip.start_estimation }}'));
-            let ending_estimation = document.createElement('p');
+            var ending_estimation = document.createElement('p');
             ending_estimation.appendChild(document.createTextNode('Trip will end about {{ trip.end_estimation }}'));
-            let link_to_trip = document.createElement('a');
+            var link_to_trip = document.createElement('a');
             link_to_trip.appendChild(document.createTextNode('Go to trip'));
             link_to_trip.setAttribute('href', '{% url 'trip:trip' trip.id %}');
             list_item.appendChild(link_to_trip);

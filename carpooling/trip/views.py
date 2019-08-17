@@ -11,25 +11,24 @@ from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy import Point
 from geopy.distance import distance as point_distance
-from numpy.linalg import norm
 
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
-from trip.forms import TripForm, TripRequestForm
+from trip.forms import TripForm, TripRequestForm, AutomaticJoinTripForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
-from trip.utils import extract_source, extract_destination
+from trip.utils import extract_source, extract_destination, get_trip_score
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
 
 class TripCreationManger(View):
-    @method_decorator(login_required)
-    def get(self, request):
+    @staticmethod
+    def get(request):
         return render(request, 'trip_creation.html', {'form': TripForm()})
 
-    @method_decorator(login_required)
-    def post(self, request):
+    @staticmethod
+    def post(request):
         trip = TripCreationManger.create_trip(request.user, request.POST)
         if trip is not None:
             return redirect(reverse('trip:add_to_groups', kwargs={'trip_id': trip.id}))
@@ -51,18 +50,19 @@ class TripCreationManger(View):
 
 
 class TripRequestManager(View):
-    def get(self, request, trip_id):
+    @classmethod
+    def get(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
 
         if request.user == trip.car_provider:
             if trip.status != trip.WAITING_STATUS:
                 return HttpResponseGone('Trip status is not waiting')
-            return self.show_trip_requests(request, trip)
+            return cls.show_trip_requests(request, trip)
 
         elif trip in Trip.get_accessible_trips_for(request.user):
             if trip.status != trip.WAITING_STATUS:
                 return HttpResponseGone('Trip status is not waiting')
-            return self.show_create_request_form(request, trip)
+            return cls.show_create_request_form(request)
         else:
             return HttpResponseForbidden('You have not access to this trip')
 
@@ -77,7 +77,7 @@ class TripRequestManager(View):
         })
 
     @staticmethod
-    def show_create_request_form(request, trip):
+    def show_create_request_form(request):
         return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
 
     @check_request_type
@@ -119,7 +119,8 @@ class TripRequestManager(View):
         trip_request.save()
         return trip_request
 
-    def put(self, request, trip_id):
+    @classmethod
+    def put(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user != trip.car_provider:
             return HttpResponseForbidden()
@@ -132,17 +133,17 @@ class TripRequestManager(View):
         except (ValueError, TypeError):
             return HttpResponseBadRequest()
 
-        # TODO: change the following line to "action = request.POST.get('action')" and handle action field in template
-        action = request.POST.get('action', 'accept')
+        # TODO: Handle action field in template
+        action = request.POST.get('action')
         if action == 'accept':
             try:
-                TripRequestManager.accept_trip_request(trip, trip_request_id)
-                return TripRequestManager.show_trip_requests(request, trip)
+                cls.accept_trip_request(trip, trip_request_id)
+                return cls.show_trip_requests(request, trip)
             except Trip.TripIsFullException:
-                return TripRequestManager.show_trip_requests(request, trip, "Trip is full")
+                return cls.show_trip_requests(request, trip, "Trip is full")
         elif action == 'decline':
-            TripRequestManager.decline_request(trip, trip_request_id)
-            return TripRequestManager.show_trip_requests(request, trip)
+            cls.decline_request(trip, trip_request_id)
+            return cls.show_trip_requests(request, trip)
         else:
             return HttpResponseBadRequest('Unknown action')
 
@@ -167,30 +168,23 @@ class TripRequestManager(View):
 
 
 class AutomaticJoinRequestManager(View):
-    def get(self, request):
-        return render(request, 'automatic_join_trip_form.html')
+    TRIP_SCORE_THRESHOLD = 0.05
 
-    def post(self, request):
-        trips = Trip.get_accessible_trips_for(request.user).filter(people_can_join_automatically=True)
-        source = extract_source(request.POST)
-        destination = extract_destination(request.POST)
-        if not TripForm.is_point_valid(source) or not TripForm.is_point_valid(destination):
-            return HttpResponseBadRequest()
-
-        trips = sorted(trips, key=lambda trip: (
-            SearchTripsManager.get_trip_score(trip, source=source, destination=destination)))
-        for trip in trips:
-            if self.join_if_trip_is_not_full(trip, request.user, source, destination):
-                return redirect(reverse('trip:trip', kwargs={'trip_id': trip.id}))
-        return render(request, 'trip_not_found.html')
+    @staticmethod
+    def get(request):
+        return render(request, 'automatically_join_trip_form.html', {'form': AutomaticJoinTripForm()})
 
     @classmethod
-    @atomic
-    def join_if_trip_is_not_full(cls, trip, user, source, destination):
-        if trip.capacity > trip.passengers.count():
-            Companionship.objects.create(trip=trip, member=user, source=source, destination=destination)
-            return True
-        return False
+    def post(cls, request):
+        form = AutomaticJoinTripForm(data=request.POST, user=request.user, trip_score_threshold=cls.TRIP_SCORE_THRESHOLD)
+
+        if form.is_valid():
+            trip = form.join_a_trip_automatically()
+            if trip is not None:
+                return redirect(reverse('trip:trip', kwargs={'trip_id': trip.id}))
+            return render(request, 'trip_not_found.html')
+
+        return HttpResponseBadRequest()
 
 
 class TripHandler(View):
@@ -252,37 +246,6 @@ class SearchTripsManager(View):
         return HttpResponseBadRequest()
 
     @staticmethod
-    def subtract_two_point(point1: Point, point2: Point):
-        return Point(point1.x - point2.x, point1.y - point2.y)
-
-    @staticmethod
-    def get_trip_score(trip, source: Point, destination: Point):
-        source_to_trip_source = SearchTripsManager.subtract_two_point(trip.source, source)
-        destination_to_trip_destination = SearchTripsManager.subtract_two_point(trip.destination, destination)
-        trip_source_to_destination = SearchTripsManager.subtract_two_point(trip.destination, trip.source)
-
-        if np.dot(trip_source_to_destination, SearchTripsManager.subtract_two_point(destination, source)) < 0:
-            return np.inf
-        else:
-            if np.dot(source_to_trip_source, trip_source_to_destination) > 0:
-                # distance to source dot
-                to_source_distance = norm(source_to_trip_source)
-            else:
-                # distance to line
-                to_source_distance = norm(np.cross(source_to_trip_source, trip_source_to_destination)) / norm(
-                    trip_source_to_destination)
-
-            if np.dot(destination_to_trip_destination, trip_source_to_destination) < 0:
-                # distance to source dot
-                to_destination_distance = norm(destination_to_trip_destination)
-            else:
-                # distance to line
-                to_destination_distance = norm(
-                    np.cross(destination_to_trip_destination, trip_source_to_destination)) / norm(
-                    trip_source_to_destination)
-        return to_source_distance + to_destination_distance
-
-    @staticmethod
     def do_search(request):
         data = request.GET
         source = Point(float(data['source_lat']), float(data['source_lng']))
@@ -290,8 +253,8 @@ class SearchTripsManager(View):
         trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
             status=Trip.DONE_STATUS)
         trips = sorted(trips, key=lambda trip: (
-            SearchTripsManager.get_trip_score(trip, source=source, destination=destination)))
-        trips = filter(lambda trip: SearchTripsManager.get_trip_score(trip, source, destination) != np.inf, trips)
+            get_trip_score(trip, source=source, destination=destination)))
+        trips = filter(lambda trip: get_trip_score(trip, source, destination) != np.inf, trips)
         return render(request, "trips_viewer.html", {"trips": trips})
 
     @staticmethod
@@ -301,8 +264,6 @@ class SearchTripsManager(View):
                    'destination_lng' in post_data
         else:
             return True
-
-    # Trip.objects.filter(groups__membership__member_id=)
 
 
 @login_required
