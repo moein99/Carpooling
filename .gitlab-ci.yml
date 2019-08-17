@@ -1,9 +1,9 @@
 stages :
-    - runserver
+    - run
     - test
 
 runserver:
-    stage: runserver
+    stage: run
     scriot:
         - echo "runserver"
         - ./manage.py runserver 
