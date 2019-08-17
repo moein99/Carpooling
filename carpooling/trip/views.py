@@ -159,14 +159,17 @@ class TripRequestManager(View):
         return TripRequestManager.show_trip_requests(request, trip)
 
 
-class TripHandler(View):
-    @method_decorator(login_required)
-    def get(self, request, trip_id):
-        return HttpResponse('Not Implemented yet')
+@login_required
+def get_trip_page(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id)
+    if trip.car_provider_id == request.user.id or Companionship.objects.filter(trip_id=trip_id,
+                                                                               member_id=request.user.id).exists():
+        return render(request, 'trip_page.html', {
+            'trip': trip,
+        })
+    else:
+        return HttpResponseForbidden()
 
-    @method_decorator(login_required)
-    def post(self, request):
-        raise NotImplementedError()
 
 
 class TripVoteHandler(View):
@@ -354,6 +357,20 @@ def get_available_trips_view(request):
     trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
         is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
     return render(request, 'trip_manager.html', {'trips': trips})
+
+
+@login_required
+@only_get_allowed
+def get_chat_interface(request, trip_id):
+    user = request.user
+    trip = get_object_or_404(Trip, id=trip_id)
+    if trip.car_provider_id == user.id or Companionship.objects.filter(trip_id=trip_id, member_id=user.id).exists():
+        return render(request, 'trip_chat.html', {
+            'trip_id': trip_id,
+            'username': user.username
+        })
+    else:
+        return HttpResponseForbidden()
 
 
 @login_required
