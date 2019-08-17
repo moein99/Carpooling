@@ -1,33 +1,194 @@
 {% extends 'base.html' %}
 
+{% block extra_header %}
+    <script type="text/javascript">
+        window.onload = function () {
+            var conn;
+            var msg = document.getElementById("msg");
+            var log = document.getElementById("log");
+
+            function appendLog(item) {
+                var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+                log.appendChild(item);
+                if (doScroll) {
+                    log.scrollTop = log.scrollHeight - log.clientHeight;
+                }
+            }
+
+            document.getElementById("form").onsubmit = function () {
+                if (!conn) {
+                    return false;
+                }
+                if (!msg.value) {
+                    return false;
+                }
+                conn.send(JSON.stringify({
+                    username: '{{ user.username }}',
+                    trip: parseInt({{ trip.id }}, 10),
+                    message: msg.value
+                }));
+                msg.value = "";
+                return false;
+            };
+
+            if (window["WebSocket"]) {
+                conn = new WebSocket("ws://127.0.0.1:8080/trip/chat/ws?id={{ trip.id }}");
+                conn.onclose = function (evt) {
+                    var item = document.createElement("div");
+                    item.innerHTML = "<b>Connection closed.</b>";
+                    appendLog(item);
+                };
+                conn.onmessage = function (evt) {
+                    var messages = evt.data.split('\n');
+                    for (var i = 0; i < messages.length; i++) {
+                        var item = document.createElement("div");
+                        item.innerText = messages[i];
+                        appendLog(item);
+                    }
+                };
+            } else {
+                var item = document.createElement("div");
+                item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+                appendLog(item);
+            }
+        };
+    </script>
+
+{% endblock %}
+
 {% block body %}
-    <a href="{% url 'trip:trip_music_player' trip.id %}"> Music Player </a>
-    {% if trip.status == 'dn' %}
-        <h1> Trip Done ^^ </h1>
-        <a href="{% url 'trip:trip_vote' trip.id %}">Vote</a>
-        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
-        <br>
+    <div class="ui centered grid">
+        <div class="ui eight wide column">
+            <div class="ui center aligned segment">
+                <div class="ui content">
+                    {% if trip.status == trip.WAITING_STATUS %}
+                        <h3>Waiting for people</h3>
+                    {% elif trip.status == trip.CLOSED_STATUS %}
+                        <h3>trip is closed</h3>
+                    {% elif trip.status == trip.IN_ROUTE_STATUS %}
+                        <h3>In route ...</h3>
+                    {% else %}
+                        <h3>Trip is finished</h3>
+                    {% endif %}
+                </div>
+                <h4 class="ui horizontal divider header">
+                    <i class="tag blue icon"></i>
+                    Description
+                </h4>
+                <h5 style="text-align: left">
+                    {{ trip.trip_description }}
+                </h5>
+                <h4 class="ui horizontal divider header">
+                    <i class="list alternate outline red icon"></i>
+                    Details
+                </h4>
 
+                <table class="ui definition table">
+                    <tbody>
+                        <tr>
+                        <td class="two wide column">Capacity</td>
+                        <td>{{ trip.capacity }}</td>
+                        </tr>
+                        <tr>
+                        <td>Car provider</td>
+                        <td><a href="{% url 'account:user_profile' trip.car_provider.id %}">{{ trip.car_provider.first_name }} {{ trip.car_provider.last_name }}</a></td>
+                        </tr>
+                        <tr>
+                        <td>Start</td>
+                        <td>{{ trip.start_estimation }}</td>
+                        </tr>
+                        <tr>
+                        <td>End</td>
+                        <td>{{ trip.end_estimation }}</td>
+                        </tr>
+                        <tr>
+                        <td>Source</td>
+                        <td>({{ trip.source.0 }}, {{ trip.source.1 }})</td>
+                        </tr>
+                        <tr>
+                        <td>Destination</td>
+                        <td>({{ trip.destination.0 }}, {{ trip.destination.1 }})</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-    {% elif trip.status == 'in' %}
-        <h1> Trip In Route ^^ </h1>
-        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
-        <br>
-        PlayList
+                <h4 class="ui horizontal divider header">
+                    <i class="users green icon"></i>
+                    People & Groups
+                </h4>
 
-    {% elif trip.status == 'cl' %}
-        <h1> Trip Is Closed ^^ </h1>
-        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
-        <br>
-        PlayList
+                <div class="ui grid">
+                    <div class="eight wide column">
+                        <table class="ui celled table">
+                            <thead>
+                                <tr>
+                                    <th>Joined People</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for member in trip.passengers.all %}
+                                    <tr><td data-label="Joined People"><a href="{% url 'account:user_profile' member.id %}">{{ member.first_name }} {{ member.last_name }}</a></td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
 
-    {% elif trip.status == 'wa' %}
-        <h1> Trip Is Waiting ^^ </h1>
-        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
-        <br>
-        PlayList
-    {% endif %}
+                    <div class="eight wide column">
+                        <table class="ui celled table">
+                            <thead>
+                                <tr>
+                                    <th>Allowed Groups</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in trip.groups.all %}
+                                    <tr><td data-label="Joined People"><a href="{% url 'group:group' group.id %}">{{ group.title }}</a></td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
+        <div class="ui four wide column">
+            <div class="ui segment" id="music_player_container">
+                <div class="ui search" id="spotify_search_box">
+                    <div class="ui icon input" style="width: 100%">
+                        <input class="prompt" type="text" placeholder="Search ...">
+                        <i class="search icon"></i>
+                    </div>
+                </div>
+                <iframe id="player" style="width: 100%; height: 23em; border-radius:1em; margin-top: 1em" src="https://open.spotify.com/embed/playlist/{{ trip.playlist_id }}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+            </div>
+
+            <div class="ui segment">
+                <div class="ui content" id="log" style="width: 100%; height: 18em; overflow: auto;"></div>
+                <div class="ui divider"></div>
+                <form class="ui form" id="form">
+                    <input type="text" id="msg" placeholder="Type a message ...">
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var url = "{% url 'trip:spotify_search' trip.id 'query' %}".replace('query', '{query}');
+        $('#spotify_search_box').search({
+            type          : 'standard',
+            minCharacters : 3,
+            apiSettings   : {
+                url: url
+            },
+            fields: {
+                results: 'items',
+                title: 'title',
+                description: 'description',
+                actionURL: 'url'
+            },
+            maxResults: 10,
+        });
+    </script>
 
 
 {% endblock %}

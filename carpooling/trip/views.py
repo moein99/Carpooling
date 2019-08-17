@@ -33,7 +33,6 @@ class TripCreationHandler(View):
     def get(self, request):
         return render(request, 'trip_creation.html', {'form': TripForm()})
 
-
     @method_decorator(login_required)
     def post(self, request):
         trip = TripCreationHandler.create_trip(request.user, request.POST)
