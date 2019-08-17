@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseNotAllowed, HttpResponseBadRequest, HttpResponseForbidden
+from django.db.models.aggregates import Sum
+from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -10,6 +11,7 @@ from django.views.generic.base import View
 
 from account.forms import *
 from account.models import Member
+from trip.models import Vote
 
 
 class SignUp(generic.CreateView):
@@ -32,52 +34,49 @@ class UserProfileManager(View):
 
     @staticmethod
     @login_required
-    def get_edit_profile(request, user_id):
-        if user_id != request.user.id:
+    def get_edit_profile(request, member_id):
+        if member_id != request.user.id:
             return HttpResponseForbidden()
         form = EditProfileForm(instance=request.user)
         return render(request, "edit_profile.html", {"form": form})
 
     @staticmethod
-    def get_profile(request, user_id):
+    def get_profile(request, member_id):
+        profile_elements = UserProfileManager.get_user_basic_data(Member.objects.get(id=member_id))
         if request.user.is_authenticated:
-            return UserProfileManager.show_profile_to_member(request, user_id)
+            profile_elements = UserProfileManager.add_member_specific_data(profile_elements, request.user, member_id)
+        return render(request, 'profile.html', profile_elements)
+
+    @staticmethod
+    def get_user_basic_data(user):
+        votes = UserProfileManager.get_user_received_votes(user.id)
+        rate = -1
+        if len(votes) != 0:
+            rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
+        return {"status": UserProfileManager.ANONYMOUS_PROFILE_STATUS, "member": user, "rate": rate}
+
+    @staticmethod
+    def add_member_specific_data(profile_elements, user, member_id):
+        profile_elements['user_comments'] = UserProfileManager.get_user_comments(member_id)
+        profile_elements['comment_form'] = CommentForm()
+        if user.id == member_id:
+            profile_elements['status'] = UserProfileManager.OWNED_PROFILE_STATUS
         else:
-            return UserProfileManager.show_profile_to_anonymous(request, user_id)
+            profile_elements['reported'] = UserProfileManager.is_reported(user.id, member_id)
+            profile_elements['status'] = UserProfileManager.MEMBER_PROFILE_STATUS
+        return profile_elements
 
     @staticmethod
-    @login_required
-    def show_profile_to_member(request, user_id):
-        if request.user.id == user_id:
-            return UserProfileManager.show_my_profile(request, user_id)
-        else:
-            return UserProfileManager.show_member_profile(request, user_id)
+    def get_user_received_votes(member_id):
+        return Vote.objects.all().filter(receiver_id=member_id)
 
     @staticmethod
-    def show_profile_to_anonymous(request, user_id):
-        user_data = Member.objects.get(id=user_id)
-        return render(request, "profile.html",
-                      {"status": UserProfileManager.ANONYMOUS_PROFILE_STATUS, "member": user_data})
+    def get_user_sent_votes(member_id):
+        return Vote.objects.all().filter(sender_id=member_id)
 
     @staticmethod
-    def show_my_profile(request, user_id):
-        user_comments = UserProfileManager.get_user_comments(user_id)
-        return render(request, "profile.html",
-                      {"status": UserProfileManager.OWNED_PROFILE_STATUS, "member": request.user, 'comment_form':
-                          CommentForm(), 'user_comments': user_comments})
-
-    @staticmethod
-    def show_member_profile(request, user_id):
-        user_data = Member.objects.get(id=user_id)
-        reported = UserProfileManager.is_reported(request.user.id, user_id)
-        user_comments = UserProfileManager.get_user_comments(user_id)
-        return render(request, "profile.html",
-                      {"status": UserProfileManager.MEMBER_PROFILE_STATUS, "member": user_data, 'reported': reported,
-                       'comment_form': CommentForm(), 'user_comments': user_comments})
-
-    @staticmethod
-    def get_user_comments(prof_id):
-        return Comment.objects.filter(receiver_id=prof_id).order_by('-sent_time')
+    def get_user_comments(member_id):
+        return Comment.objects.filter(receiver_id=member_id).order_by('-sent_time')
 
     @staticmethod
     def is_reported(reporter_id, reported_id):
@@ -88,11 +87,11 @@ class UserProfileManager(View):
 
     @method_decorator(login_required)
     def post(self, request, user_id):
-        type = request.POST.get('type', 'POST')
-        if type == 'PUT':
+        request_type = request.POST.get('type', 'POST')
+        if request_type == 'PUT':
             return self.put(request, user_id)
         if UserProfileManager.create_comment(request.user, Member.objects.get(id=user_id), request.POST):
-            return redirect(reverse("account:user_profile", kwargs={'user_id': user_id}))
+            return redirect(reverse("account:user_profile", kwargs={'member_id': user_id}))
         return HttpResponseBadRequest("Invalid request")
 
     @staticmethod
@@ -111,7 +110,12 @@ class UserProfileManager(View):
     def put(self, request, user_id):
         if user_id != request.user.id:
             return HttpResponseForbidden()
-        user = Member.objects.get(id=request.user.id)
+        UserProfileManager.update_member_profile(request)
+        return redirect(reverse('account:user_profile', kwargs={'member_id': request.user.id}))
+
+    @staticmethod
+    def update_member_profile(request):
+        user = request.user
         user.first_name = request.POST.get('first_name')
         user.last_name = request.POST.get('last_name')
         user.bio = request.POST.get('bio')
@@ -119,5 +123,3 @@ class UserProfileManager(View):
             user.profile_picture = request.FILES['profile_picture']
         user.phone_number = request.POST.get('phone_number')
         user.save()
-        return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
-

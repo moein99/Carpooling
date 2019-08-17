@@ -1,5 +1,8 @@
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
+from django.http import HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -8,8 +11,6 @@ from django.views.generic.base import View
 from account.models import Member
 from group.forms import GroupForm
 from group.models import Group, Membership
-from django.http import HttpResponseForbidden, HttpResponseNotAllowed
-
 from group.utils import get_group_membership, add_to_group, join_group, manage_group_authorization
 
 
@@ -128,3 +129,19 @@ class GroupMembersManager(View):
             get_object_or_404(Membership, group_id=group.id, member_id=member_id).delete()
             return redirect(reverse('group:group_members', kwargs={'group_id': group_id}))
         return HttpResponseForbidden("You are not authorized to remove a member")
+
+
+class SearchGroupManager:
+    @staticmethod
+    @login_required
+    def search_group_view(request, query):
+        result = {'groups': []}
+        for group in Group.objects.all():
+            if query in group.title:
+                result['groups'].append(SearchGroupManager.get_group_json(group))
+        return HttpResponse(json.dumps(result))
+
+    @staticmethod
+    def get_group_json(group):
+        return {'title': group.title, 'description': group.description,
+                'url': reverse('group:group', kwargs={'group_id': group.id})}

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+    {% if trip.status == 'dn' %}
+        <h1> Trip Done ^^ </h1>
+        <a href="{% url 'trip:trip_vote' trip_id %}">Vote</a>
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
+        <br>
+        PlayList
+
+    {% elif trip.status == 'in' %}
+        <h1> Trip In Route ^^ </h1>
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
+        <br>
+        PlayList
+
+    {% elif trip.status == 'cl' %}
+        <h1> Trip Is Closed ^^ </h1>
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
+        <br>
+        PlayList
+
+    {% elif trip.status == 'wa' %}
+        <h1> Trip Is Waiting ^^ </h1>
+        <a href="{% url 'trip:trip_chat' trip.id %}"> Chat </a>
+        <br>
+        PlayList
+    {% endif %}
+
+
+
+{% endblock %}
+

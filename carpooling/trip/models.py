@@ -28,6 +28,7 @@ class Trip(models.Model):
     start_estimation = models.DateTimeField()
     end_estimation = models.DateTimeField()
     trip_description = models.CharField(max_length=200, null=True)
+    playlist_id = models.CharField(max_length=22)
 
 
 class Companionship(models.Model):
@@ -74,3 +75,10 @@ class TripRequest(models.Model):
     destination = gis_models.PointField()
     creation_time = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
+
+
+class Vote(models.Model):
+    receiver = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="received_votes")
+    sender = models.ForeignKey(Member, on_delete=models.SET_NULL, related_name="sent_votes", null=True)
+    trip = models.ForeignKey(Trip, on_delete=models.SET_NULL, null=True)
+    rate = models.FloatField()

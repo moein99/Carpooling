@@ -1,31 +1,29 @@
-import datetime
+from datetime import datetime
 
 import numpy as np
-from background_task import background
 from django.contrib.auth.decorators import login_required
-from django.core.mail import send_mail
+from django.contrib.gis.geos import Point
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse
+from django.http import HttpResponseBadRequest, HttpResponseGone
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
-from geopy import Point
 from geopy.distance import distance as point_distance
 from numpy.linalg import norm
 
 from account.models import Member
-from carpooling.settings import DISTANCE_THRESHOLD, EMAIL_HOST_USER
+from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
 from trip.forms import TripForm, TripRequestForm
-from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
+from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
 from trip.utils import extract_source, extract_destination
 from .tasks import notify
+from .utils import SpotifyAgent
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
@@ -33,7 +31,6 @@ user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 class TripCreationHandler(View):
     @method_decorator(login_required)
     def get(self, request):
-        print(timezone.now())
         return render(request, 'trip_creation.html', {'form': TripForm()})
 
 
@@ -54,6 +51,8 @@ class TripCreationHandler(View):
             trip_obj.car_provider = car_provider
             trip_obj.status = Trip.WAITING_STATUS
             trip_obj.source, trip_obj.destination = source, destination
+            spotify_agent = SpotifyAgent()
+            trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
             trip_obj.save()
             TripCreationHandler.set_notification(trip_obj)
             return trip_obj
@@ -167,14 +166,44 @@ class TripRequestManager(View):
         return TripRequestManager.show_trip_requests(request, trip)
 
 
-class TripHandler(View):
-    @method_decorator(login_required)
-    def get(self, request, trip_id):
-        return HttpResponse('Not Implemented yet')
+@login_required
+def get_trip_page(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id)
+    if trip.car_provider_id == request.user.id or Companionship.objects.filter(trip_id=trip_id,
+                                                                               member_id=request.user.id).exists():
+        return render(request, 'trip_page.html', {
+            'trip': trip,
+        })
+    else:
+        return HttpResponseForbidden()
 
-    @method_decorator(login_required)
-    def post(self, request):
-        raise NotImplementedError()
+
+
+class TripVoteHandler(View):
+    @method_decorator(login_required())
+    def get(self, request, trip_id):
+        members = []
+        rate = []
+        trip = Trip.objects.get(id=trip_id)
+        members.extend(trip.passengers.all())
+        members.append(trip.car_provider)
+        members.remove(request.user)
+        for i in range(len(members)):
+            try:
+                object = Vote.objects.get(sender=request.user, receiver=members[i])
+                rate[i] = object.rate
+            except Vote.DoesNotExist:
+                rate[i] = None
+        members_rate = {}
+        for i in range(len(members)):
+            members_rate[members[i]] = rate[i]
+        return render(request, 'trip_vote_manage.html', {'members_rate': members_rate, 'trip_id': trip_id})
+
+    @method_decorator(login_required())
+    def post(self, request, receiver, rate, trip_id):
+        object = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip=trip_id)
+        object.save()
+        return render(request, "trip_vote_manage.html")
 
 
 class TripGroupsManager(View):
@@ -222,7 +251,7 @@ class SearchTripsManger(View):
     @method_decorator(login_required)
     def get(self, request):
         if SearchTripsManger.is_valid_search_parameter(request.GET):
-            return SearchTripsManger.do_search(request) if request.GET else render(request, "search_trip")
+            return SearchTripsManger.do_search(request) if request.GET else render(request, "search_trip.html")
         return HttpResponseBadRequest()
 
     @staticmethod
@@ -259,17 +288,16 @@ class SearchTripsManger(View):
     @staticmethod
     def do_search(request):
         data = request.GET
-        source = Point(float(data['source_lat']), float(data['source_lng']))
-        destination = Point(float(data['destination_lat']), float(data['destination_lng']))
+        source = extract_source(data)
+        destination = extract_destination(data)
         trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
             status=Trip.DONE_STATUS)
+        if data['start_time'] != "-1":
+            trips = SearchTripsManger.filter_by_dates(data['start_time'], data['end_time'], trips)
         trips = sorted(trips, key=lambda query: (
             SearchTripsManger.get_query_score(query, source=source, destination=destination)))
         trips = filter(lambda query: SearchTripsManger.get_query_score(query, source, destination) != np.inf, trips)
-        return render(request,
-                      "trips_viewer.html",
-                      {"trips": trips}
-                      )
+        return render(request, "trips_viewer.html", {"trips": trips})
 
     @staticmethod
     def is_valid_search_parameter(post_data):
@@ -278,6 +306,12 @@ class SearchTripsManger(View):
                    'destination_lng' in post_data
         else:
             return True
+
+    @staticmethod
+    def filter_by_dates(start_date, end_date, trips_query_set):
+        search_start_time = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        search_end_time = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+        return trips_query_set.filter(start_estimation__gt=search_start_time, end_estimation__lt=search_end_time)
 
 
 @login_required
@@ -330,3 +364,24 @@ def get_available_trips_view(request):
     trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
         is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
     return render(request, 'trip_manager.html', {'trips': trips})
+
+
+@login_required
+@only_get_allowed
+def get_chat_interface(request, trip_id):
+    user = request.user
+    trip = get_object_or_404(Trip, id=trip_id)
+    if trip.car_provider_id == user.id or Companionship.objects.filter(trip_id=trip_id, member_id=user.id).exists():
+        return render(request, 'trip_chat.html', {
+            'trip_id': trip_id,
+            'username': user.username
+        })
+    else:
+        return HttpResponseForbidden()
+
+
+@login_required
+@only_get_allowed
+def get_playlist_view(request, trip_id):
+    playlist_id = Trip.objects.get(id=trip_id).playlist_id
+    return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})
