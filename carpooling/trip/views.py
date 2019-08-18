@@ -5,11 +5,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.http import HttpResponseBadRequest, HttpResponseGone
+from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponseNotAllowed, HttpResponse
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import DetailView
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
@@ -100,7 +102,7 @@ class TripRequestManager(View):
         form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
         if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
             TripRequestManager.create_trip_request(form, source, destination)
-            return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
+            return redirect(reverse('trip:trip', kwargs={'pk': trip_id}))
         return render(request, 'join_trip.html', {'form': form})
 
     @staticmethod
@@ -165,17 +167,60 @@ class TripRequestManager(View):
         return TripRequestManager.show_trip_requests(request, trip)
 
 
-@login_required
-@only_get_allowed
-def get_trip_page(request, trip_id):
-    trip = get_object_or_404(Trip, id=trip_id)
+class TripDetailView(DetailView):
+    model = Trip
+    template_name = 'trip_page.html'
 
-    if Trip.get_accessible_trips_for(request.user).filter(id=trip_id).exists():
-        return render(request, 'trip_page.html', {
-            'trip': trip,
-        })
-    else:
-        return HttpResponseForbidden()
+    @check_request_type
+    def post(self, request, pk):
+        return HttpResponseNotAllowed("Method not implemented")
+
+    def put(self, request, pk):
+        self.object = self.get_object()
+        action = self.request.POST['action']
+        if action == "leave":
+            user_id = self.request.POST['user_id']
+            self.handle_member_leaving_trip(user_id)
+        if action == "update_status":
+            pass
+        return HttpResponse(str(reverse('root:home')))
+
+    def get_context_data(self, **kwargs):
+        context = super(TripDetailView, self).get_context_data(**kwargs)
+        context['is_user_in_trip'] = self.is_user_in_trip()
+        context['user_request_already_sent'] = self.is_request_already_sent()
+        return context
+
+    def is_user_in_trip(self):
+        return self.request.user in self.object.passengers.all() or self.request.user == self.object.car_provider
+
+    def is_request_already_sent(self):
+        return TripRequest.objects.filter(trip=self.object, status=TripRequest.PENDING_STATUS,
+                                          containing_set__applicant=self.request.user).exists()
+
+    def handle_member_leaving_trip(self, user_id):
+        Companionship.objects.filter(member_id=user_id, trip_id=self.object.id).delete()
+        if int(user_id) == self.object.car_provider.id:
+            self.handle_car_provider_leaving()
+
+    def handle_car_provider_leaving(self):
+        self.object.car_provider = None
+        self.object.status = self.object.CANCELED_STATUS
+        self.object.save()
+
+
+# @login_required
+# @only_get_allowed
+# def get_trip_page(request, trip_id):
+#     trip = get_object_or_404(Trip, id=trip_id)
+#     is_user_in_trip = request.user in trip.passengers.all() or request.user == trip.car_provider
+#     user_request_already_sent = is_request_already_sent(request.user, trip)
+#     if Trip.get_accessible_trips_for(request.user).filter(id=trip_id).exists():
+#         return render(request, 'trip_page.html', {
+#             'trip': trip, 'is_user_in_trip': is_user_in_trip, 'user_request_already_sent': user_request_already_sent
+#         })
+#     else:
+#         return HttpResponseForbidden()
 
 
 class TripVoteManager(View):
@@ -235,7 +280,7 @@ class TripGroupsManager(View):
         for group in user_nearby_groups:
             if request.POST.get(group.code, None) == 'on':
                 TripGroups.objects.create(group=group, trip=trip)
-        return redirect(reverse("trip:trip", kwargs={'trip_id': trip_id}))
+        return redirect(reverse("trip:trip", kwargs={'pk': trip_id}))
 
     @staticmethod
     def get_nearby_groups(user, trip_id):

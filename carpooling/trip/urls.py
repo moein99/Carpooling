@@ -1,9 +1,9 @@
 from django.contrib.auth.decorators import login_required
 from django.urls import path
 
-from trip.views import get_chat_interface, get_trip_page, TripVoteManager
+from trip.views import get_chat_interface, TripVoteManager
 from trip.views import SearchTripsManger, get_available_trips_view, get_active_trips_view, \
-    get_playlist_view
+    get_playlist_view, TripDetailView
 from trip.views import TripCreationHandler, TripGroupsManager, TripRequestManager, \
     get_owned_trips_view, get_public_trips_view, get_categorized_trips_view, get_group_trips_view
 
@@ -13,7 +13,7 @@ app_name = "trip"
 
 urlpatterns = [
     path("create/", TripCreationHandler.as_view(), name='trip_creation'),
-    path("<int:trip_id>/", get_trip_page, name='trip'),
+    path("<int:pk>/", login_required(TripDetailView.as_view()), name='trip'),
     path("<int:trip_id>/group/add/", TripGroupsManager.as_view(), name='add_to_groups'),
     path('<int:trip_id>/request/', login_required(TripRequestManager.as_view()), name='trip_request'),
     path('', get_owned_trips_view, name='owned_trips'),

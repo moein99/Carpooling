@@ -12,11 +12,13 @@ class Trip(models.Model):
     CLOSED_STATUS = 'cl'
     IN_ROUTE_STATUS = 'in'
     DONE_STATUS = 'dn'
+    CANCELED_STATUS = 'ca'
     STATUS_CHOICES = [
         (WAITING_STATUS, 'waiting'),
         (CLOSED_STATUS, 'closed'),
         (IN_ROUTE_STATUS, 'in route'),
-        (DONE_STATUS, 'done')
+        (DONE_STATUS, 'done'),
+        (CANCELED_STATUS, 'canceled')
     ]
     source = gis_models.PointField()
     destination = gis_models.PointField()

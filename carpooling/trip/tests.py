@@ -257,7 +257,7 @@ class CreateTripRequestTest(TestCase):
             'new_request_set_title': 'Title',
         })
 
-        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'pk': self.trip.id}))
 
         new_trip_request_set = TripRequestSet.objects.get(title='Title')
         new_trip_request = TripRequest.objects.get(trip=self.trip)
@@ -274,7 +274,7 @@ class CreateTripRequestTest(TestCase):
             'containing_set': trip_request_set.id,
         })
 
-        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'pk': self.trip.id}))
 
         new_trip_request = TripRequest.objects.get(trip=self.trip)
         self.assertEqual(new_trip_request.containing_set, trip_request_set)
@@ -315,7 +315,7 @@ class CreateTripRequestTest(TestCase):
             'destination_lng': '34',
             'create_new_request_set': True,
         })
-        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'pk': self.trip.id}))
         self.assertTrue(TripRequestSet.objects.filter(title='No Title').exists())
 
     def test_not_waiting_trip(self):
