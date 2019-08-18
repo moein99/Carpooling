@@ -64,7 +64,7 @@ class TripRequestSet(models.Model):
     closed = models.BooleanField(default=False)
 
     def close(self):
-        self.requests.exclude(status=TripRequest.ACCEPTED_STATUS).update(status=TripRequest.CANCELED_STATUS)
+        self.requests.filter(status=TripRequest.PENDING_STATUS).update(status=TripRequest.CANCELED_STATUS)
         self.closed = True
         self.save()
 
@@ -90,6 +90,9 @@ class TripRequest(models.Model):
     destination = gis_models.PointField()
     creation_time = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
+
+    def is_pending(self):
+        return self.status == TripRequest.PENDING_STATUS
 
 
 class Vote(models.Model):
