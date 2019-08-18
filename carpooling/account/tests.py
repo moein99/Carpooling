@@ -168,9 +168,9 @@ class TripHistoryTest(TestCase):
         test_companionship = mommy.make(Companionship, trip=test_trip, member=self.user)
         response = self.client.get(reverse("account:trip_history"))
         self.assertEqual(response.status_code, 200)
-        trips = response.context['made_trip_history']
+        trips = response.context['driving_trip']
         self.assertEqual(list(Trip.objects.filter(car_provider=self.user)), list(trips))
-        trips = response.context['joined_trip_history']
+        trips = response.context['partaking_trips']
         self.assertEqual(list(Trip.objects.filter(passengers__companionship=test_companionship)), list(trips))
 
 
@@ -202,9 +202,9 @@ class TripRequestHistoryTest(TestCase):
             'id': test_request_set.id
         })
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(TripRequestSet.objects.get(applicant=self.user).is_closed(), True)
+        self.assertEqual(TripRequestSet.objects.get(applicant=self.user).closed, True)
 
-    def test_close_request(self):
+    def test_cancel_request(self):
         self.client.login(username='moein', password='1234')
         test_trip = mommy.make(Trip)
         test_request_set = mommy.make(TripRequestSet, applicant=self.user)
@@ -215,6 +215,6 @@ class TripRequestHistoryTest(TestCase):
             'id': test_request.id
         })
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(TripRequest.objects.get(id=test_request.id).is_closed(), True)
+        self.assertEqual(TripRequest.objects.get(id=test_request.id).is_canceled(), True)
 
 

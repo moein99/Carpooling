@@ -6,8 +6,8 @@
     <div class="ui centered grid">
         <div class="six wide column">
             <div class="ui segment">
-                Joined Trips
-                <ul id="joined_trips_list">
+                Partaking Trips
+                <ul id="partaking_trips_list">
 
                 </ul>
             </div>
@@ -15,8 +15,8 @@
 
         <div class="six wide column">
             <div class="ui segment">
-                Made Trips
-                <ul id="made_trips_list">
+                Driving Trips
+                <ul id="driving_trip_list">
 
                 </ul>
             </div>
@@ -24,8 +24,8 @@
 
         <br>
         <script>
-            var joined_trips_list = document.getElementById('joined_trips_list');
-            {% for trip in  joined_trip_history%}
+            var partaking_trips_list = document.getElementById('partaking_trips_list');
+            {% for trip in  partaking_trips%}
                 var joined_list_item = document.createElement('li');
                 {% if trip.trip_description %}
                     var joined_description = document.createElement('p');
@@ -59,11 +59,11 @@
                 joined_list_item.appendChild(joined_starting_estimation);
                 joined_list_item.appendChild(joined_ending_estimation);
                 joined_list_item.setAttribute('style', 'border: 1px solid; padding: 2px; margin:4px');
-                joined_trips_list.appendChild(joined_list_item);
+                partaking_trips_list.appendChild(joined_list_item);
             {% endfor %}
 
-            var made_trips_list = document.getElementById('made_trips_list');
-            {% for trip in  made_trip_history%}
+            var driving_trip_list = document.getElementById('driving_trip_list');
+            {% for trip in  driving_trip%}
                 var made_list_item = document.createElement('li');
                 {% if trip.trip_description %}
                     var made_description = document.createElement('p');
@@ -97,7 +97,7 @@
                 made_list_item.appendChild(made_starting_estimation);
                 made_list_item.appendChild(made_ending_estimation);
                 made_list_item.setAttribute('style', 'border: 1px solid; padding: 2px; margin:4px');
-                made_trips_list.appendChild(made_list_item);
+                driving_trip_list.appendChild(made_list_item);
             {% endfor %}
 
         </script>

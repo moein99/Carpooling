@@ -55,20 +55,12 @@ class TripRequestSet(models.Model):
     closed = models.BooleanField(default=False)
 
     def close(self):
-        self.requests.exclude(status=TripRequest.ACCEPTED_STATUS).update(status=TripRequest.CANCELED_STATUS)
+        self.requests.filter(status=TripRequest.PENDING_STATUS).update(status=TripRequest.CANCELED_STATUS)
         self.closed = True
         self.save()
 
     def __str__(self):
         return str(self.id) + '' + self.title
-
-    def is_closed(self):
-        closed = True
-        for request in self.requests.all():
-            if request.status != TripRequest.CANCELED_STATUS:
-                closed = False
-                break
-        return closed
 
 
 class TripRequest(models.Model):
@@ -90,10 +82,8 @@ class TripRequest(models.Model):
     creation_time = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
 
-    def is_closed(self):
-        if self.status == TripRequest.CANCELED_STATUS:
-            return True
-        return False
+    def is_canceled(self):
+        return self.status == TripRequest.CANCELED_STATUS
 
 
 class Vote(models.Model):

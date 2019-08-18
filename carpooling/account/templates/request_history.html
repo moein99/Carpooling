@@ -7,7 +7,7 @@
         {% for trip_request_set in trip_request_sets %}
             <li style="border: 1px solid; padding: 2px; margin:4px">
                 {{ trip_request_set.title }}
-                {% if not trip_request_set.is_closed %}
+                {% if not trip_request_set.closed %}
                     <form name="close_set" method="POST">
                         {% csrf_token %}
                         <input type="hidden" name="type" value="PUT">
@@ -24,7 +24,7 @@
                             Destination location is '{{ trip_request.destination }}'
                             <br>
                             This request is {{ trip_request.get_status_display }}
-                            {% if not trip_request.is_closed %}
+                            {% if not trip_request.is_canceled %}
                                 <br>
                                 <form name="close_set" method="POST">
                                     {% csrf_token %}
