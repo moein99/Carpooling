@@ -50,6 +50,7 @@ INSTALLED_APPS = [
 
 # Handle session is not Json Serializable
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
+SESSION_ENGINE = 'redis_sessions.session'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

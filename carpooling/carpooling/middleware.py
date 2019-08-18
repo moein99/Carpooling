@@ -6,7 +6,8 @@ from django.utils.deprecation import MiddlewareMixin
 
 
 class AutoLogout(MiddlewareMixin):
-    def process_request(self, request):
+    @staticmethod
+    def process_request(request):
         if not request.user.is_authenticated:
             # Can't log out if not logged in
             return
