@@ -14,8 +14,10 @@ class Member(AbstractUser):
     bio = models.TextField(null=True, max_length=300)
     phone_number = models.CharField(max_length=11,
                                     validators=[RegexValidator(regex=r'^\d{11}$')])
-    email = models.EmailField(unique=True)
     gender = models.CharField(max_length=1, choices=GENDERS, null=True)
+
+    class Meta(object):
+        unique_together = ('email',)
 
 
 class Report(models.Model):

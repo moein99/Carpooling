@@ -106,10 +106,10 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-        self.mohsen = Member.objects.create(username="mohsen")
+        self.mohsen = mommy.make(Member, username="mohsen", _fill_optional=['email'])
         self.mohsen.set_password("12345678")
         self.mohsen.save()
-        self.ali = Member.objects.create(username="alialavi")
+        self.ali = mommy.make(Member, username="alialavi", _fill_optional=['email'])
         self.ali.set_password("12345678")
         self.ali.save()
 
@@ -233,10 +233,10 @@ class CreateTripRequestTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-        self.car_provider = Member.objects.create(username="car_provider_user")
+        self.car_provider = mommy.make(Member, username="car_provider_user", _fill_optional=['email'])
         self.car_provider.set_password("12345678")
         self.car_provider.save()
-        self.applicant = Member.objects.create(username="applicant_user")
+        self.applicant = mommy.make(Member, username="applicant_user", _fill_optional=['email'])
         self.applicant.set_password("12345678")
         self.applicant.save()
 
@@ -348,11 +348,11 @@ class ManageTripRequestsTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-        self.car_provider = Member.objects.create(username="car_provider")
+        self.car_provider = mommy.make(Member, username="car_provider", _fill_optional=['email'])
         self.car_provider.set_password("12345678")
         self.car_provider.save()
 
-        self.applicant = Member.objects.create(username="applicant")
+        self.applicant = mommy.make(Member, username="applicant", _fill_optional=['email'])
         self.applicant.set_password("12345678")
         self.applicant.save()
 
@@ -395,7 +395,7 @@ class ManageTripRequestsTest(TestCase):
 
     def test_accept_full_trip_request(self):
         for i in range(self.trip.capacity):
-            mommy.make(Companionship, trip=self.trip, member=mommy.make(Member))
+            mommy.make(Companionship, trip=self.trip, member=mommy.make(Member,_fill_optional=['email']))
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
             'type': 'PUT',
             'request_id': self.trip_request.id,
@@ -407,7 +407,8 @@ class ManageTripRequestsTest(TestCase):
         self.assertEqual(response.context['error'], 'Trip is full')
 
     def test_accept_incorrect_trip_request_id(self):
-        dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS)
+        dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS,
+                                _fill_optional=['email'])
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': dummy_trip.id}), {
             'type': 'PUT',
             'request_id': self.trip_request.id,
