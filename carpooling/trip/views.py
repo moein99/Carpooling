@@ -13,12 +13,14 @@ from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
-from numpy.linalg import norm
 
 from account.models import Member
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
+from trip.forms import TripForm, TripRequestForm, AutomaticJoinTripForm
+from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
+from trip.utils import extract_source, extract_destination, get_trip_score
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
 from trip.utils import extract_source, extract_destination
@@ -28,21 +30,20 @@ from .utils import SpotifyAgent
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
 
-class TripCreationHandler(View):
-    @method_decorator(login_required)
-    def get(self, request):
+class TripCreationManger(View):
+    @staticmethod
+    def get(request):
         return render(request, 'trip_creation.html', {'form': TripForm()})
 
-
-    @method_decorator(login_required)
-    def post(self, request):
-        trip = TripCreationHandler.create_trip(request.user, request.POST)
+    @classmethod
+    def post(cls, request):
+        trip = cls.create_trip(request.user, request.POST)
         if trip is not None:
             return redirect(reverse('trip:add_to_groups', kwargs={'trip_id': trip.id}))
         return HttpResponseBadRequest('Invalid Request')
 
-    @staticmethod
-    def create_trip(car_provider: Member, post_data):
+    @classmethod
+    def create_trip(cls, car_provider: Member, post_data):
         source = extract_source(post_data)
         destination = extract_destination(post_data)
         trip_form = TripForm(data=post_data)
@@ -54,7 +55,7 @@ class TripCreationHandler(View):
             spotify_agent = SpotifyAgent()
             trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
             trip_obj.save()
-            TripCreationHandler.set_notification(trip_obj)
+            cls.set_notification(trip_obj)
             return trip_obj
         return None
 
@@ -64,14 +65,21 @@ class TripCreationHandler(View):
 
 
 class TripRequestManager(View):
-    def get(self, request, trip_id):
+    @classmethod
+    def get(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
-        if trip.status != trip.WAITING_STATUS:
-            return HttpResponseGone('Trip status is not waiting')
+
         if request.user == trip.car_provider:
-            return self.show_trip_requests(request, trip)
+            if trip.status != trip.WAITING_STATUS:
+                return HttpResponseGone('Trip status is not waiting')
+            return cls.show_trip_requests(request, trip)
+
+        elif trip in Trip.get_accessible_trips_for(request.user):
+            if trip.status != trip.WAITING_STATUS:
+                return HttpResponseGone('Trip status is not waiting')
+            return cls.show_create_request_form(request)
         else:
-            return self.show_create_request_form(request, trip)
+            return HttpResponseForbidden('You have not access to this trip')
 
     @staticmethod
     def show_trip_requests(request, trip, error=None):
@@ -84,7 +92,7 @@ class TripRequestManager(View):
         })
 
     @staticmethod
-    def show_create_request_form(request, trip):
+    def show_create_request_form(request):
         return render(request, 'join_trip.html', {'form': TripRequestForm(user=request.user)})
 
     @check_request_type
@@ -93,6 +101,9 @@ class TripRequestManager(View):
         if request.user == trip.car_provider:
             return HttpResponseForbidden()
 
+        if trip not in Trip.get_accessible_trips_for(request.user):
+            return HttpResponseForbidden('You have not access to this trip')
+
         if trip.status != trip.WAITING_STATUS:
             return HttpResponseGone('Trip status is not waiting')
 
@@ -100,7 +111,12 @@ class TripRequestManager(View):
         destination = extract_destination(request.POST)
         form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
         if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
-            TripRequestManager.create_trip_request(form, source, destination)
+            trip_request = TripRequestManager.create_trip_request(form, source, destination)
+            if trip.people_can_join_automatically:
+                try:
+                    self.accept_trip_request(trip, trip_request.id)
+                except Trip.TripIsFullException():
+                    pass
             return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
         return render(request, 'join_trip.html', {'form': form})
 
@@ -118,7 +134,8 @@ class TripRequestManager(View):
         trip_request.save()
         return trip_request
 
-    def put(self, request, trip_id):
+    @classmethod
+    def put(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user != trip.car_provider:
             return HttpResponseForbidden()
@@ -131,44 +148,63 @@ class TripRequestManager(View):
         except (ValueError, TypeError):
             return HttpResponseBadRequest()
 
-        # TODO: change the following line to "action = request.POST.get('action')" and handle action field in template
-        action = request.POST.get('action', 'accept')
+        # TODO: Handle action field in template
+        action = request.POST.get('action')
         if action == 'accept':
-            return TripRequestManager.accept_request_if_trip_is_not_full(request, trip, trip_request_id)
+            try:
+                cls.accept_trip_request(trip, trip_request_id)
+                return cls.show_trip_requests(request, trip)
+            except Trip.TripIsFullException:
+                return cls.show_trip_requests(request, trip, "Trip is full")
         elif action == 'decline':
-            return TripRequestManager.decline_request(request, trip, trip_request_id)
+            cls.decline_request(trip, trip_request_id)
+            return cls.show_trip_requests(request, trip)
         else:
             return HttpResponseBadRequest('Unknown action')
 
     @staticmethod
     @atomic
-    def accept_request_if_trip_is_not_full(request, trip, trip_request_id):
-        if trip.capacity > trip.passengers.count():
-            trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
-            if trip_request.status != TripRequest.PENDING_STATUS:
-                return HttpResponseBadRequest('Request is not pending')
-            trip_request.status = TripRequest.ACCEPTED_STATUS
-            trip_request.save()
-            Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
-                                         source=trip_request.source, destination=trip_request.destination)
-            trip_request.containing_set.close()
-            return TripRequestManager.show_trip_requests(request, trip)
-        return TripRequestManager.show_trip_requests(request, trip, "Trip is full")
+    def accept_trip_request(trip, trip_request_id):
+        if trip.capacity <= trip.passengers.count():
+            raise Trip.TripIsFullException()
+        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        trip_request.status = TripRequest.ACCEPTED_STATUS
+        trip_request.save()
+        Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
+                                     source=trip_request.source, destination=trip_request.destination)
+        trip_request.containing_set.close()
 
     @staticmethod
     @atomic
-    def decline_request(request, trip, trip_request_id):
+    def decline_request(trip, trip_request_id):
         trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
-        if trip_request.status != TripRequest.PENDING_STATUS:
-            return HttpResponseBadRequest('Request is not pending')
         trip_request.status = TripRequest.DECLINED_STATUS
         trip_request.save()
-        return TripRequestManager.show_trip_requests(request, trip)
+
+
+class AutomaticJoinRequestManager(View):
+    TRIP_SCORE_THRESHOLD = 0.05
+
+    @staticmethod
+    def get(request):
+        return render(request, 'automatically_join_trip_form.html', {'form': AutomaticJoinTripForm()})
+
+    @classmethod
+    def post(cls, request):
+        form = AutomaticJoinTripForm(data=request.POST, user=request.user, trip_score_threshold=cls.TRIP_SCORE_THRESHOLD)
+
+        if form.is_valid():
+            trip = form.join_a_trip_automatically()
+            if trip is not None:
+                return redirect(reverse('trip:trip', kwargs={'trip_id': trip.id}))
+            return render(request, 'trip_not_found.html')
+
+        return HttpResponseBadRequest()
 
 
 @login_required
 @only_get_allowed
-def get_trip_page(request, trip_id):
+def get_trip_page_view(request, trip_id):
     trip = get_object_or_404(Trip, id=trip_id)
 
     if Trip.get_accessible_trips_for(request.user).filter(id=trip_id).exists():
@@ -190,8 +226,8 @@ class TripVoteManager(View):
         members.remove(request.user)
         for i in range(len(members)):
             try:
-                object = Vote.objects.get(sender=request.user, receiver=members[i])
-                rate.append(object.rate)
+                vote = Vote.objects.get(sender=request.user, receiver=members[i])
+                rate.append(vote.rate)
             except Vote.DoesNotExist:
                 rate.append(None)
         members_rate = {}
@@ -203,8 +239,8 @@ class TripVoteManager(View):
     def post(self, request, trip_id):
         receiver = request.POST.get('receiver')
         rate = request.POST.get('rate')
-        object = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip_id=trip_id)
-        object.save()
+        vote = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip_id=trip_id)
+        vote.save()
         members = []
         rate = []
         trip = Trip.objects.get(id=trip_id)
@@ -213,8 +249,8 @@ class TripVoteManager(View):
         members.remove(request.user)
         for i in range(len(members)):
             try:
-                object = Vote.objects.get(sender=request.user, receiver=members[i])
-                rate.append(object.rate)
+                vote = Vote.objects.get(sender=request.user, receiver=members[i])
+                rate.append(vote.rate)
             except Vote.DoesNotExist:
                 rate.append(None)
         members_rate = {}
@@ -264,56 +300,25 @@ class TripGroupsManager(View):
         return point_distance(first_point, second_point).meters <= threshold
 
 
-class SearchTripsManger(View):
-    @method_decorator(login_required)
-    def get(self, request):
-        if SearchTripsManger.is_valid_search_parameter(request.GET):
-            return SearchTripsManger.do_search(request) if request.GET else render(request, "search_trip.html")
+class SearchTripsManager(View):
+    @classmethod
+    def get(cls, request):
+        if cls.is_valid_search_parameter(request.GET):
+            return cls.do_search(request) if request.GET else render(request, "search_trip.html")
         return HttpResponseBadRequest()
 
-    @staticmethod
-    def subtract_two_point(point1: Point, point2: Point):
-        return Point(point1.x - point2.x, point1.y - point2.y)
-
-    @staticmethod
-    def get_query_score(query, source: Point, destination: Point):
-        source_to_trip_source = SearchTripsManger.subtract_two_point(query.source, source)
-        destination_to_trip_destination = SearchTripsManger.subtract_two_point(query.destination, destination)
-        trip_source_to_destination = SearchTripsManger.subtract_two_point(query.destination, query.source)
-
-        if np.dot(trip_source_to_destination, SearchTripsManger.subtract_two_point(destination, source)) < 0:
-            return np.inf
-        else:
-            if np.dot(source_to_trip_source, trip_source_to_destination) > 0:
-                # distance to source dot
-                to_source_distance = norm(source_to_trip_source)
-            else:
-                # distance to line
-                to_source_distance = norm(np.cross(source_to_trip_source, trip_source_to_destination)) / norm(
-                    trip_source_to_destination)
-
-            if np.dot(destination_to_trip_destination, trip_source_to_destination) < 0:
-                # distance to source dot
-                to_destination_distance = norm(destination_to_trip_destination)
-            else:
-                # distance to line
-                to_destination_distance = norm(
-                    np.cross(destination_to_trip_destination, trip_source_to_destination)) / norm(
-                    trip_source_to_destination)
-        return to_source_distance + to_destination_distance
-
-    @staticmethod
-    def do_search(request):
+    @classmethod
+    def do_search(cls, request):
         data = request.GET
         source = extract_source(data)
         destination = extract_destination(data)
         trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
             status=Trip.DONE_STATUS)
         if data['start_time'] != "-1":
-            trips = SearchTripsManger.filter_by_dates(data['start_time'], data['end_time'], trips)
-        trips = sorted(trips, key=lambda query: (
-            SearchTripsManger.get_query_score(query, source=source, destination=destination)))
-        trips = filter(lambda query: SearchTripsManger.get_query_score(query, source, destination) != np.inf, trips)
+            trips = cls.filter_by_dates(data['start_time'], data['end_time'], trips)
+        trips = sorted(trips, key=lambda trip: (
+            get_trip_score(trip, source=source, destination=destination)))
+        trips = filter(lambda trip: get_trip_score(trip, source, destination) != np.inf, trips)
         return render(request, "trips_viewer.html", {"trips": trips})
 
     @staticmethod
