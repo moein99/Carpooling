@@ -18,4 +18,3 @@ def notify(trip_id: int):
         receivers,
         fail_silently=False,
     )
-    return
