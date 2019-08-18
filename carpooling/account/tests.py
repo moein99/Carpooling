@@ -1,11 +1,13 @@
 from io import BytesIO
 
+from django.db.models import Q
 from django.test import Client
 from django.test import TestCase
 from django.urls import reverse
 from model_mommy import mommy
 
 from account.models import Member, Report, Mail, Comment
+from trip.models import Trip, Companionship, TripRequestSet, TripRequest
 
 
 class MemberProfileTest(TestCase):
@@ -44,19 +46,19 @@ class EditProfileTest(TestCase):
         self.temp_acount.save()
 
     def test_anonymous(self):
-        response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id':1}) + '?edit=true')
+        response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id': 1}) + '?edit=true')
         self.assertEqual(response.status_code, 302)
 
     def test_edit_profile_get_request(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id':1}) + '?edit=true')
+        response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id': 1}) + '?edit=true')
         self.assertEqual(response.status_code, 200)
 
     def test_edit_profile(self):
         img = BytesIO(b'mybinarydata')
         img.name = 'myimage.jpg'
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id':1}) + '?edit=true',
+        response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id': 1}) + '?edit=true',
                                     data={'first_name': 'sepehr', 'phone_number': '09123456789', 'last_name': 'spaner',
                                           'profile_picture': img, 'type': 'PUT'})
         self.assertEqual(response.status_code, 302)
@@ -65,7 +67,7 @@ class EditProfileTest(TestCase):
 
     def test_edit_profile_no_image(self):
         self.client.login(username='testuser', password='majid123')
-        response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id':1}) + '?edit=true',
+        response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id': 1}) + '?edit=true',
                                     data={'first_name': 'sepehr', 'phone_number': '09123456789', 'last_name': 'spaner',
                                           'profile_picture': '', 'type': 'PUT'})
         self.assertEqual(response.status_code, 302)
@@ -150,3 +152,82 @@ class CommentTest(TestCase):
                          comment_data,
                          follow=True)
         self.assertEqual(Comment.objects.get(receiver_id=receiver.id).message, 'hi moein')
+
+
+class TripHistoryTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = mommy.make(Member, username='moein')
+        self.user.set_password('1234')
+        self.user.save()
+
+    def test_get_Trip_History(self):
+        self.client.login(username='moein', password='1234')
+        mommy.make(Trip, car_provider=self.user)
+        test_trip = mommy.make(Trip)
+        test_companionship = mommy.make(Companionship, trip=test_trip, member=self.user)
+        response = self.client.get(reverse("account:trip_history"))
+        self.assertEqual(response.status_code, 200)
+        trips = response.context['driving_trip']
+        self.assertEqual(list(Trip.objects.filter(car_provider=self.user)), list(trips))
+        trips = response.context['partaking_trips']
+        self.assertEqual(list(Trip.objects.filter(passengers__companionship=test_companionship)), list(trips))
+
+
+class TripRequestHistoryTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = mommy.make(Member, username='moein')
+        self.user.set_password('1234')
+        self.user.save()
+
+    def test_get_trip_History(self):
+        self.client.login(username='moein', password='1234')
+        test_trip = mommy.make(Trip)
+        test_request_set = mommy.make(TripRequestSet, applicant=self.user)
+        mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set)
+        response = self.client.get(reverse("account:request_history"))
+        self.assertEqual(response.status_code, 200)
+        request_set = response.context['trip_request_sets']
+        self.assertEqual(list(TripRequestSet.objects.filter(applicant=self.user)), list(request_set))
+
+    def test_close_request_set(self):
+        self.client.login(username='moein', password='1234')
+        test_trip = mommy.make(Trip)
+        test_request_set = mommy.make(TripRequestSet, applicant=self.user)
+        mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set)
+        response = self.client.post(reverse("account:request_history"), data={
+            'type': 'PUT',
+            'target': 'set',
+            'id': test_request_set.id
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(TripRequestSet.objects.get(applicant=self.user).closed, True)
+
+    def test_cancel_request(self):
+        self.client.login(username='moein', password='1234')
+        test_trip = mommy.make(Trip)
+        test_request_set = mommy.make(TripRequestSet, applicant=self.user)
+        test_request = mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set)
+        response = self.client.post(reverse("account:request_history"), data={
+            'type': 'PUT',
+            'target': 'request',
+            'id': test_request.id
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(TripRequest.objects.get(id=test_request.id).is_pending(), False)
+
+    def test_cancel_bad_request(self):
+        self.client.login(username='moein', password='1234')
+        test_trip = mommy.make(Trip)
+        test_request_set = mommy.make(TripRequestSet, applicant=self.user)
+        test_request = mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set, status=TripRequest.ACCEPTED_STATUS)
+        response = self.client.post(reverse("account:request_history"), data={
+            'type': 'PUT',
+            'target': 'request',
+            'id': test_request.id
+        })
+        self.assertEqual(response.status_code, 400)
+
+
+

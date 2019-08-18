@@ -1,30 +1,46 @@
 from dateutil.parser import parse
 from django import forms
+from django.contrib.gis.geos import Point
+from django.db.transaction import atomic
 
-from account.models import Member
-from trip.models import Trip, TripRequest, TripRequestSet
+from trip.models import Trip, TripRequest, Companionship
+from trip.utils import get_trip_score
+
+
+def check_times_validity(form_data):
+    try:
+        start_time = parse(str(form_data['start_estimation']))
+    except KeyError:
+        raise forms.ValidationError('Start time is required')
+    try:
+        end_time = parse(str(form_data['end_estimation']))
+    except KeyError:
+        raise forms.ValidationError('End time is required')
+    if end_time < start_time:
+        raise forms.ValidationError(
+            "Start time should be before end time"
+        )
+
+
+def is_point_valid(point):
+    if 0 <= point[0] <= 90 and 0 <= point[1] <= 180:
+        return True
+    else:
+        return False
 
 
 class TripForm(forms.ModelForm):
     class Meta:
         model = Trip
-        fields = ('is_private', 'capacity', 'start_estimation', 'end_estimation', 'trip_description')
+        fields = ('is_private', 'people_can_join_automatically', 'capacity', 'start_estimation', 'end_estimation',
+                  'trip_description')
 
     def clean(self):
         cleaned_data = super(TripForm, self).clean()
-        self.check_times_validity(cleaned_data)
+        check_times_validity(cleaned_data)
         self.check_capacity_validity(cleaned_data)
         self.check_description_validity(cleaned_data)
         return cleaned_data
-
-    @staticmethod
-    def check_times_validity(cleaned_data):
-        start_time = parse(str(cleaned_data['start_estimation']))
-        end_time = parse(str(cleaned_data['end_estimation']))
-        if end_time < start_time:
-            raise forms.ValidationError(
-                "Start time should be before end time"
-            )
 
     @staticmethod
     def check_capacity_validity(cleaned_data):
@@ -76,3 +92,73 @@ class TripRequestForm(forms.ModelForm):
     class Meta:
         model = TripRequest
         fields = ['containing_set', 'create_new_request_set', 'new_request_set_title']
+
+
+class AutomaticJoinTripForm(forms.Form):
+    source_lat = forms.FloatField(widget=forms.HiddenInput, initial=35.7)
+    source_lng = forms.FloatField(widget=forms.HiddenInput, initial=51.4)
+    destination_lat = forms.FloatField(widget=forms.HiddenInput, initial=35.7)
+    destination_lng = forms.FloatField(widget=forms.HiddenInput, initial=51.3)
+    start_estimation = forms.DateTimeField()
+    end_estimation = forms.DateTimeField()
+
+    def __init__(self, user=None, trip_score_threshold=None, *args, **kwargs):
+        super(AutomaticJoinTripForm, self).__init__(*args, **kwargs)
+        self.user = user
+        self.trip_score_threshold = trip_score_threshold
+
+    def join_a_trip_automatically(self):
+        trips = Trip.get_accessible_trips_for(self.user).filter(people_can_join_automatically=True,
+                                                                status=Trip.WAITING_STATUS)
+
+        source, destination = self.cleaned_data['source'], self.cleaned_data['destination']
+        trips = sorted(trips, key=lambda trip: (get_trip_score(trip, source, destination)))
+        trips = filter(lambda trip: self.__is_ok_to_join(trip), trips)
+        for trip in trips:
+            if self.__join_if_trip_is_not_full(trip):
+                return trip
+        return None
+
+    def __is_ok_to_join(self, trip):
+        return self.__is_score_under_threshold(trip) and self.__time_has_conflict(trip)
+
+    def __is_score_under_threshold(self, trip):
+        source, destination = self.cleaned_data['source'], self.cleaned_data['destination']
+        return get_trip_score(trip, source, destination) < self.trip_score_threshold
+
+    def __time_has_conflict(self, trip):
+        start_estimation, end_estimation = self.cleaned_data['start_estimation'], self.cleaned_data['end_estimation']
+        return start_estimation < trip.end_estimation and end_estimation > trip.start_estimation
+
+    @atomic
+    def __join_if_trip_is_not_full(self, trip):
+        source, destination = self.cleaned_data['source'], self.cleaned_data['destination']
+        if trip.capacity > trip.passengers.count():
+            Companionship.objects.create(trip=trip, member=self.user, source=source, destination=destination)
+            return True
+        return False
+
+    def clean(self):
+        cleaned_data = self.cleaned_data
+        try:
+            cleaned_data['source'] = Point(float(cleaned_data.pop('source_lat')), float(cleaned_data.pop('source_lng')))
+            if not is_point_valid(cleaned_data['source']):
+                raise ValueError()
+        except (KeyError, TypeError, ValueError):
+            raise forms.ValidationError('Invalid source location')
+
+        try:
+            cleaned_data['destination'] = Point(float(cleaned_data.pop('destination_lat')),
+                                                float(cleaned_data.pop('destination_lng')))
+            if not is_point_valid(cleaned_data['destination']):
+                raise ValueError()
+
+        except (KeyError, TypeError, ValueError):
+            raise forms.ValidationError('Invalid destination location')
+
+        check_times_validity(cleaned_data)
+        return cleaned_data
+
+    class Meta:
+        fields = ['source_lat', 'source_lng', 'destination_lat', 'destination_lng', 'start_estimation',
+                  'end_estimation']

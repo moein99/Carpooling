@@ -8,7 +8,9 @@ from model_mommy import mommy
 
 class SearchPeopleTest(TestCase):
     def setUp(self):
-        mommy.make(Member, username='moein', password='1234', _fill_optional=['email'])
+        test_user_1 = mommy.make(Member, username='moein', _fill_optional=['email'])
+        test_user_1.set_password('1234')
+        test_user_1.save()
         mommy.make(Member, username='sepehr', password='1234', _fill_optional=['email'])
         mommy.make(Member, username='sajjad', password='1234', _fill_optional=['email'])
         mommy.make(Member, username='sepi', password='1234', _fill_optional=['email'])

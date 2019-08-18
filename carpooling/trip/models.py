@@ -21,6 +21,7 @@ class Trip(models.Model):
     source = gis_models.PointField()
     destination = gis_models.PointField()
     is_private = models.BooleanField(default=False)
+    people_can_join_automatically = models.BooleanField(default=False)
     passengers = models.ManyToManyField(Member, through="Companionship", related_name='partaking_trips')
     groups = models.ManyToManyField(Group, through="TripGroups")
     car_provider = models.ForeignKey(Member, on_delete=models.SET_NULL, related_name='driving_trips', null=True)
@@ -35,6 +36,14 @@ class Trip(models.Model):
     def get_accessible_trips_for(cls, user):
         return cls.objects.filter(Q(is_private=False) | Q(groups__membership__member=user) | Q(car_provider=user) | Q(
             companionship__member=user))
+
+    @classmethod
+    def get_accessible_trips_for(cls, user):
+        return cls.objects.filter(Q(is_private=False) | Q(groups__membership__member=user) | Q(car_provider=user) | Q(
+            companionship__member=user))
+
+    class TripIsFullException(Exception):
+        pass
 
 
 class Companionship(models.Model):
@@ -61,7 +70,7 @@ class TripRequestSet(models.Model):
     closed = models.BooleanField(default=False)
 
     def close(self):
-        self.requests.exclude(status=TripRequest.ACCEPTED_STATUS).update(status=TripRequest.CANCELED_STATUS)
+        self.requests.filter(status=TripRequest.PENDING_STATUS).update(status=TripRequest.CANCELED_STATUS)
         self.closed = True
         self.save()
 
@@ -87,6 +96,9 @@ class TripRequest(models.Model):
     destination = gis_models.PointField()
     creation_time = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
+
+    def is_pending(self):
+        return self.status == TripRequest.PENDING_STATUS
 
 
 class Vote(models.Model):
