@@ -31,6 +31,7 @@ user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 class TripCreationHandler(View):
     @method_decorator(login_required)
     def get(self, request):
+        print(datetime.now())
         return render(request, 'trip_creation.html', {'form': TripForm()})
 
 
