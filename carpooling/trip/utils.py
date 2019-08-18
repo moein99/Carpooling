@@ -109,6 +109,9 @@ class SpotifyAgent:
         already_added_tracks_ids = [track[ItemType.TRACK]['id'] for track in playlist_tracks[ItemType.TRACKS][ItemType.ITEMS]]
         return [track_id for track_id in new_tracks_ids if track_id not in already_added_tracks_ids]
 
+    def delete_playlist(self, playlist_id):
+        self.spotify.user_playlist_unfollow(SPOTIFY_USERNAME, playlist_id)
+
 
 def extract_source(post_data):
     return Point(float(post_data['source_lat']), float(post_data['source_lng']))

@@ -104,7 +104,7 @@
                             {% if trip.status != trip.CANCELED_STATUS %}
                                 <td><a href="{% url 'account:user_profile' trip.car_provider.id %}">{{ trip.car_provider.first_name }} {{ trip.car_provider.last_name }}</a></td>
                             {% else %}
-                                <td>Provider left</td>
+                                <td>No one</td>
                             {% endif %}
                         </tr>
                         <tr>
@@ -163,22 +163,41 @@
                     </div>
                 </div>
             </div>
-            {% if trip.status == trip.WAITING_STATUS and user == trip.car_provider %}
-                <button class="ui right floated green button" onclick="update_page('update_status')" style="display: inline-block">Leave trip</button>
+            {% if user == trip.car_provider and trip.status != trip.DONE_STATUS %}
+                <button class="ui right floated green button" onclick="update_page('update_status')" style="display: inline-block">
+                    {% if trip.status == trip.WAITING_STATUS %}
+                        Close trip
+                    {% elif trip.status == trip.CLOSED_STATUS %}
+                        Start trip
+                    {% elif trip.status == trip.IN_ROUTE_STATUS %}
+                        Finish trip
+                    {% endif %}
+                </button>
+            {% endif %}
+            {% if trip.status == trip.CLOSED_STATUS %}
+                <button class="ui left floated yellow button" onclick="update_page('open_trip')" style="display: inline-block">Open trip</button>
             {% endif %}
         </div>
 
         {% if is_user_in_trip %}
             <div class="ui four wide column">
-                <div class="ui segment" id="music_player_container">
-                    <div class="ui search" id="spotify_search_box">
-                        <div class="ui icon input" style="width: 100%">
-                            <input class="prompt" type="text" placeholder="Search ...">
-                            <i class="search icon"></i>
+                {% if trip.status != trip.CANCELED_STATUS %}
+                    {% if trip.status != trip.DONE_STATUS %}
+                        <div class="ui segment" id="music_player_container">
+                            <div class="ui search" id="spotify_search_box">
+                                <div class="ui icon input" style="width: 100%">
+                                    <input class="prompt" type="text" placeholder="Search ...">
+                                    <i class="search icon"></i>
+                                </div>
+                            </div>
+                            <iframe id="player" style="width: 100%; height: 23em; border-radius:1em; margin-top: 1em" src="https://open.spotify.com/embed/playlist/{{ trip.playlist_id }}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
                         </div>
-                    </div>
-                    <iframe id="player" style="width: 100%; height: 23em; border-radius:1em; margin-top: 1em" src="https://open.spotify.com/embed/playlist/{{ trip.playlist_id }}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
-                </div>
+                    {% else %}
+                        <div class="ui segment">
+                            this will be vote
+                        </div>
+                    {% endif %}
+                {% endif %}
 
                 <div class="ui segment">
                     <div class="ui content" id="log" style="width: 100%; height: 18em; overflow: auto;"></div>
@@ -216,11 +235,14 @@
         function update_page(action) {
             var url = '{% url 'trip:trip' trip.id %}';
             var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
-            var data = {'user_id': {{ user.id }}, 'X-CSRFToken': csrftoken, 'type': 'PUT', 'action': 'leave'};
+            var post_data = {'X-CSRFToken': csrftoken, 'type': 'PUT', 'action': action};
+            if (action === "leave") {
+                post_data.user_id = {{ user.id }};
+            }
             $.ajaxSetup({
                 headers: { "X-CSRFToken": csrftoken }
             });
-            $.post(url, data, function (redirection_url, status) {
+            $.post(url, post_data, function (redirection_url, status) {
                 window.location.href = redirection_url;
             })
         }

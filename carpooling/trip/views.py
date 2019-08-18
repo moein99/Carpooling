@@ -181,9 +181,13 @@ class TripDetailView(DetailView):
         if action == "leave":
             user_id = self.request.POST['user_id']
             self.handle_member_leaving_trip(user_id)
-        if action == "update_status":
-            pass
-        return HttpResponse(str(reverse('root:home')))
+            return HttpResponse(str(reverse('root:home')))
+        elif action == "update_status":
+            self.update_status()
+            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+        elif action == "open_trip":
+            self.open_trip()
+            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
 
     def get_context_data(self, **kwargs):
         context = super(TripDetailView, self).get_context_data(**kwargs)
@@ -206,7 +210,28 @@ class TripDetailView(DetailView):
     def handle_car_provider_leaving(self):
         self.object.car_provider = None
         self.object.status = self.object.CANCELED_STATUS
+        self.delete_playlist()
         self.object.save()
+
+    def update_status(self):
+        if self.object.status == self.object.WAITING_STATUS:
+            self.object.status = self.object.CLOSED_STATUS
+        elif self.object.status == self.object.CLOSED_STATUS:
+            self.object.status = self.object.IN_ROUTE_STATUS
+        elif self.object.status == self.object.IN_ROUTE_STATUS:
+            self.object.status = self.object.DONE_STATUS
+            self.delete_playlist()
+        self.object.save()
+
+    def open_trip(self):
+        self.object.status = self.object.WAITING_STATUS
+        self.object.save()
+
+    def delete_playlist(self):
+        spotify_agent = SpotifyAgent()
+        spotify_agent.delete_playlist(self.object.playlist_id)
+        self.object.playlist_id = None
+
 
 
 # @login_required
