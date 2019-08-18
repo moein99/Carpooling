@@ -48,6 +48,10 @@ INSTALLED_APPS = [
     'semanticuiforms',
 ]
 
+# Handle session is not Json Serializable
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
+SESSION_ENGINE = 'redis_sessions.session'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -56,7 +60,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'carpooling.middleware.AutoLogout'
 ]
+
+# Auto logout delay in minutes
+AUTO_LOGOUT_DELAY_IN_MINUTES = 8 * 60  # equivalent to 8 hours
 
 ROOT_URLCONF = 'carpooling.urls'
 
