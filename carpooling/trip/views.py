@@ -10,7 +10,6 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
@@ -175,6 +174,14 @@ class TripDetailView(DetailView):
     def post(self, request, pk):
         return HttpResponseNotAllowed("Method not implemented")
 
+    def get_context_data(self, **kwargs):
+        context = super(TripDetailView, self).get_context_data(**kwargs)
+        context['is_user_in_trip'] = self.is_user_in_trip()
+        context['user_request_already_sent'] = self.is_request_already_sent()
+        if context['is_user_in_trip']:
+            context['votes'] = self.get_votes()
+        return context
+
     def put(self, request, pk):
         self.object = self.get_object()
         action = self.request.POST['action']
@@ -188,12 +195,6 @@ class TripDetailView(DetailView):
         elif action == "open_trip":
             self.open_trip()
             return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
-
-    def get_context_data(self, **kwargs):
-        context = super(TripDetailView, self).get_context_data(**kwargs)
-        context['is_user_in_trip'] = self.is_user_in_trip()
-        context['user_request_already_sent'] = self.is_request_already_sent()
-        return context
 
     def is_user_in_trip(self):
         return self.request.user in self.object.passengers.all() or self.request.user == self.object.car_provider
@@ -232,20 +233,23 @@ class TripDetailView(DetailView):
         spotify_agent.delete_playlist(self.object.playlist_id)
         self.object.playlist_id = None
 
+    def get_votes(self):
+        votes = {}
+        vote_receivers = self.get_vote_receivers()
+        for receiver in vote_receivers:
+            votes[receiver] = None
+        already_submitted_votes = Vote.objects.filter(receiver__in=vote_receivers, sender=self.request.user,
+                                                      trip=self.object)
+        for vote in already_submitted_votes:
+            votes[vote.receiver] = vote.rate
+        return votes
 
-
-# @login_required
-# @only_get_allowed
-# def get_trip_page(request, trip_id):
-#     trip = get_object_or_404(Trip, id=trip_id)
-#     is_user_in_trip = request.user in trip.passengers.all() or request.user == trip.car_provider
-#     user_request_already_sent = is_request_already_sent(request.user, trip)
-#     if Trip.get_accessible_trips_for(request.user).filter(id=trip_id).exists():
-#         return render(request, 'trip_page.html', {
-#             'trip': trip, 'is_user_in_trip': is_user_in_trip, 'user_request_already_sent': user_request_already_sent
-#         })
-#     else:
-#         return HttpResponseForbidden()
+    def get_vote_receivers(self):
+        receivers = []
+        receivers.extend(self.object.passengers.all())
+        receivers.append(self.object.car_provider)
+        receivers.remove(self.request.user)
+        return receivers
 
 
 class TripVoteManager(View):
@@ -464,10 +468,3 @@ def get_chat_interface(request, trip_id):
         })
     else:
         return HttpResponseForbidden()
-
-
-@login_required
-@only_get_allowed
-def get_playlist_view(request, trip_id):
-    playlist_id = Trip.objects.get(id=trip_id).playlist_id
-    return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})

@@ -192,9 +192,18 @@
                             </div>
                             <iframe id="player" style="width: 100%; height: 23em; border-radius:1em; margin-top: 1em" src="https://open.spotify.com/embed/playlist/{{ trip.playlist_id }}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
                         </div>
-                    {% else %}
+                    {% elif is_user_in_trip %}
                         <div class="ui segment">
-                            this will be vote
+                            <div class="ui content" style="font-size: 1.25em">
+                                How was your trip?
+                            </div>
+                            {% for receiver, rate in votes.items %}
+                                <div class="ui segment">
+                                    <a href="{% url 'account:user_profile' receiver.id %}">{{ receiver.first_name }} {{ receiver.last_name }}:</a>
+                                    <div class="ui star rating" data-rating="{{ rate }}" data-max-rating="5"></div>
+                                </div>
+
+                            {% endfor %}
                         </div>
                     {% endif %}
                 {% endif %}
@@ -246,6 +255,8 @@
                 window.location.href = redirection_url;
             })
         }
+
+        $('.ui.rating').rating();
     </script>
 {% endblock %}
 
