@@ -52,10 +52,16 @@ class Companionship(models.Model):
     source = gis_models.PointField()
     destination = gis_models.PointField()
 
+    class Meta:
+        unique_together = ['member', 'trip']
+
 
 class TripGroups(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ['group', 'trip']
 
 
 class TripRequestSet(models.Model):

@@ -96,8 +96,12 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-        self.test_user_1 = Member.objects.create_user(username='test_user_1', password='12345678')
-        self.test_user_2 = Member.objects.create_user(username='test_user_2', password='12345678')
+        self.test_user_1 = mommy.make(Member, username="test_user_1", _fill_optional=['email'])
+        self.test_user_1.set_password("12345678")
+        self.test_user_1.save()
+        self.test_user_2 = mommy.make(Member, username="test_user_2", _fill_optional=['email'])
+        self.test_user_2.set_password("12345678")
+        self.test_user_2.save()
 
         self.g1 = mommy.make(Group, id=1, is_private=True)
         self.g2 = mommy.make(Group, id=2, is_private=False)
@@ -217,8 +221,12 @@ class CreateTripRequestTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-        self.car_provider = Member.objects.create_user(username='car_provider_user', password='12345678')
-        self.applicant = Member.objects.create_user(username='applicant_user', password='12345678')
+        self.car_provider = mommy.make(Member, username="car_provider_user", _fill_optional=['email'])
+        self.car_provider.set_password("12345678")
+        self.car_provider.save()
+        self.applicant = mommy.make(Member, username="applicant_user", _fill_optional=['email'])
+        self.applicant.set_password("12345678")
+        self.applicant.save()
 
         self.trip = mommy.make(Trip, is_private=True, car_provider=self.car_provider, status=Trip.WAITING_STATUS,
                                capacity=2)
@@ -367,8 +375,13 @@ class ManageTripRequestsTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-        self.car_provider = Member.objects.create_user(username='car_provider', password='12345678')
-        self.applicant = Member.objects.create_user(username='applicant', password='12345678')
+        self.car_provider = mommy.make(Member, username="car_provider", _fill_optional=['email'])
+        self.car_provider.set_password("12345678")
+        self.car_provider.save()
+
+        self.applicant = mommy.make(Member, username="applicant", _fill_optional=['email'])
+        self.applicant.set_password("12345678")
+        self.applicant.save()
 
         self.trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS, capacity=2)
         self.trip_request_set = TripRequestSet.objects.create(title='Title', applicant=self.applicant)
@@ -409,7 +422,7 @@ class ManageTripRequestsTest(TestCase):
 
     def test_accept_full_trip_request(self):
         for i in range(self.trip.capacity):
-            mommy.make(Companionship, trip=self.trip, member=mommy.make(Member))
+            mommy.make(Companionship, trip=self.trip, member=mommy.make(Member,_fill_optional=['email']))
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
             'type': 'PUT',
             'request_id': self.trip_request.id,
@@ -421,7 +434,8 @@ class ManageTripRequestsTest(TestCase):
         self.assertEqual(response.context['error'], 'Trip is full')
 
     def test_accept_incorrect_trip_request_id(self):
-        dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS)
+        dummy_trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS,
+                                _fill_optional=['email'])
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': dummy_trip.id}), {
             'type': 'PUT',
             'request_id': self.trip_request.id,
@@ -464,8 +478,14 @@ class AutomaticallyJoinTripTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-        self.car_provider = Member.objects.create_user(username='car_provider', password='12345678')
-        self.applicant = Member.objects.create_user(username='applicant', password='12345678')
+
+        self.car_provider = mommy.make(Member, username='car_provider', _fill_optional=['email'])
+        self.car_provider.set_password('12345678')
+        self.car_provider.save()
+
+        self.applicant = mommy.make(Member, username='applicant', _fill_optional=['email'])
+        self.applicant.set_password('12345678')
+        self.applicant.save()
 
         self.trip = mommy.make(Trip, car_provider=self.car_provider, people_can_join_automatically=True,
                                status=Trip.WAITING_STATUS, capacity=2, source=Point(34, 44), destination=Point(44, 54),

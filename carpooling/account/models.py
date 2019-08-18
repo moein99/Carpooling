@@ -16,6 +16,9 @@ class Member(AbstractUser):
                                     validators=[RegexValidator(regex=r'^\d{11}$')])
     gender = models.CharField(max_length=1, choices=GENDERS, null=True)
 
+    class Meta(object):
+        unique_together = ('email',)
+
 
 class Report(models.Model):
     reported = models.ForeignKey('Member', on_delete=models.CASCADE, related_name='reported')
