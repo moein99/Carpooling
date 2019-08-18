@@ -91,8 +91,8 @@ class TripRequest(models.Model):
     creation_time = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING_STATUS)
 
-    def is_canceled(self):
-        return self.status == TripRequest.CANCELED_STATUS
+    def is_pending(self):
+        return self.status == TripRequest.PENDING_STATUS
 
 
 class Vote(models.Model):

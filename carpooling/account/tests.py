@@ -181,7 +181,7 @@ class TripRequestHistoryTest(TestCase):
         self.user.set_password('1234')
         self.user.save()
 
-    def test_get_Trip_History(self):
+    def test_get_trip_History(self):
         self.client.login(username='moein', password='1234')
         test_trip = mommy.make(Trip)
         test_request_set = mommy.make(TripRequestSet, applicant=self.user)
@@ -215,6 +215,19 @@ class TripRequestHistoryTest(TestCase):
             'id': test_request.id
         })
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(TripRequest.objects.get(id=test_request.id).is_canceled(), True)
+        self.assertEqual(TripRequest.objects.get(id=test_request.id).is_pending(), False)
+
+    def test_cancel_bad_request(self):
+        self.client.login(username='moein', password='1234')
+        test_trip = mommy.make(Trip)
+        test_request_set = mommy.make(TripRequestSet, applicant=self.user)
+        test_request = mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set, status=TripRequest.ACCEPTED_STATUS)
+        response = self.client.post(reverse("account:request_history"), data={
+            'type': 'PUT',
+            'target': 'request',
+            'id': test_request.id
+        })
+        self.assertEqual(response.status_code, 400)
+
 
 

@@ -24,7 +24,7 @@
                             Destination location is '{{ trip_request.destination }}'
                             <br>
                             This request is {{ trip_request.get_status_display }}
-                            {% if not trip_request.is_canceled %}
+                            {% if trip_request.is_pending %}
                                 <br>
                                 <form name="close_set" method="POST">
                                     {% csrf_token %}
