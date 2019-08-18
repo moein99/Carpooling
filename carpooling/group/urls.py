@@ -1,7 +1,7 @@
 from django.urls import path
 
 from group.views import UserGroupsManager, CreateGroupManager, PublicGroupsManager, GroupManager, \
-    GroupMembersManager, SearchGroupManager
+    GroupMembersManager, SearchGroupManager, sort
 
 app_name = "group"
 
@@ -12,4 +12,5 @@ urlpatterns = [
     path('<int:group_id>/', GroupManager.as_view(), name="group"),
     path('<int:group_id>/member/', GroupMembersManager.as_view(), name="group_members"),
     path('search/<query>', SearchGroupManager.search_group_view, name="group_search"),
+    path('SortedGroup', sort, name="SortedGroupViewer")
 ]
