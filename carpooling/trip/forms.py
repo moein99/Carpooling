@@ -22,11 +22,47 @@ def check_times_validity(form_data):
         )
 
 
-def is_point_valid(point):
-    if 0 <= point[0] <= 90 and 0 <= point[1] <= 180:
-        return True
-    else:
-        return False
+class TripMapForm(forms.Form):
+    __POINT_X_UPPER_BOUND = 90
+    __POINT_X_LOWER_BOUND = 0
+    __POINT_Y_UPPER_BOUND = 180
+    __POINT_Y_LOWER_BOUND = 0
+
+    source_lat = forms.FloatField(widget=forms.HiddenInput, initial=35.7)
+    source_lng = forms.FloatField(widget=forms.HiddenInput, initial=51.4)
+    destination_lat = forms.FloatField(widget=forms.HiddenInput, initial=35.7)
+    destination_lng = forms.FloatField(widget=forms.HiddenInput, initial=51.3)
+
+    @classmethod
+    def is_point_valid(cls, point):
+        return cls.__POINT_X_LOWER_BOUND <= point.x <= cls.__POINT_X_UPPER_BOUND and \
+               cls.__POINT_Y_LOWER_BOUND <= point.y <= cls.__POINT_Y_UPPER_BOUND
+
+    def _extract_source(self):
+        try:
+            self.cleaned_data['source'] = Point(float(self.cleaned_data.pop('source_lat')),
+                                                float(self.cleaned_data.pop('source_lng')))
+            if not self.is_point_valid(self.cleaned_data['source']):
+                raise ValueError()
+        except (KeyError, TypeError, ValueError):
+            raise forms.ValidationError('Invalid source location')
+
+    def _extract_destination(self):
+        try:
+            self.cleaned_data['destination'] = Point(float(self.cleaned_data.pop('destination_lat')),
+                                                     float(self.cleaned_data.pop('destination_lng')))
+            if not self.is_point_valid(self.cleaned_data['destination']):
+                raise ValueError()
+        except (KeyError, TypeError, ValueError):
+            raise forms.ValidationError('Invalid destination location')
+
+    def clean(self):
+        self._extract_source()
+        self._extract_destination()
+        return self.cleaned_data
+
+    class Meta:
+        fields = ['source_lat', 'source_lng', 'destination_lat', 'destination_lng']
 
 
 class TripForm(forms.ModelForm):
@@ -60,10 +96,7 @@ class TripForm(forms.ModelForm):
 
     @staticmethod
     def is_point_valid(point):
-        if 0 <= point[0] <= 90 and 0 <= point[1] <= 180:
-            return True
-        else:
-            return False
+        return TripMapForm.is_point_valid(point)
 
 
 class TripRequestForm(forms.ModelForm):
@@ -94,11 +127,7 @@ class TripRequestForm(forms.ModelForm):
         fields = ['containing_set', 'create_new_request_set', 'new_request_set_title']
 
 
-class AutomaticJoinTripForm(forms.Form):
-    source_lat = forms.FloatField(widget=forms.HiddenInput, initial=35.7)
-    source_lng = forms.FloatField(widget=forms.HiddenInput, initial=51.4)
-    destination_lat = forms.FloatField(widget=forms.HiddenInput, initial=35.7)
-    destination_lng = forms.FloatField(widget=forms.HiddenInput, initial=51.3)
+class AutomaticJoinTripForm(TripMapForm):
     start_estimation = forms.DateTimeField()
     end_estimation = forms.DateTimeField()
 
@@ -139,26 +168,9 @@ class AutomaticJoinTripForm(forms.Form):
         return False
 
     def clean(self):
-        cleaned_data = self.cleaned_data
-        try:
-            cleaned_data['source'] = Point(float(cleaned_data.pop('source_lat')), float(cleaned_data.pop('source_lng')))
-            if not is_point_valid(cleaned_data['source']):
-                raise ValueError()
-        except (KeyError, TypeError, ValueError):
-            raise forms.ValidationError('Invalid source location')
-
-        try:
-            cleaned_data['destination'] = Point(float(cleaned_data.pop('destination_lat')),
-                                                float(cleaned_data.pop('destination_lng')))
-            if not is_point_valid(cleaned_data['destination']):
-                raise ValueError()
-
-        except (KeyError, TypeError, ValueError):
-            raise forms.ValidationError('Invalid destination location')
-
+        cleaned_data = super(AutomaticJoinTripForm, self).clean()
         check_times_validity(cleaned_data)
         return cleaned_data
 
-    class Meta:
-        fields = ['source_lat', 'source_lng', 'destination_lat', 'destination_lng', 'start_estimation',
-                  'end_estimation']
+    class Meta(TripMapForm.Meta):
+        fields = TripMapForm.Meta.fields + ['start_estimation', 'end_estimation']
