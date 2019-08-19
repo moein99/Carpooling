@@ -172,7 +172,11 @@ class TripDetailView(DetailView):
 
     @check_request_type
     def post(self, request, pk):
-        return HttpResponseNotAllowed("Method not implemented")
+        self.object = self.get_object()
+        receiver = Member.objects.get(id=int(self.request.POST['receiver_id']))
+        rate = self.request.POST['rate']
+        self.create_vote(receiver, rate)
+        return HttpResponse("OK")
 
     def get_context_data(self, **kwargs):
         context = super(TripDetailView, self).get_context_data(**kwargs)
@@ -183,8 +187,8 @@ class TripDetailView(DetailView):
         return context
 
     def put(self, request, pk):
-        self.object = self.get_object()
         action = self.request.POST['action']
+        self.object = self.get_object()
         if action == "leave":
             user_id = self.request.POST['user_id']
             self.handle_member_leaving_trip(user_id)
@@ -241,7 +245,7 @@ class TripDetailView(DetailView):
         already_submitted_votes = Vote.objects.filter(receiver__in=vote_receivers, sender=self.request.user,
                                                       trip=self.object)
         for vote in already_submitted_votes:
-            votes[vote.receiver] = vote.rate
+            votes[vote.receiver] = int(vote.rate)
         return votes
 
     def get_vote_receivers(self):
@@ -250,6 +254,9 @@ class TripDetailView(DetailView):
         receivers.append(self.object.car_provider)
         receivers.remove(self.request.user)
         return receivers
+
+    def create_vote(self, receiver, rate):
+        Vote.objects.create(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object)
 
 
 class TripVoteManager(View):

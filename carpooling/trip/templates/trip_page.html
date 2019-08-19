@@ -192,7 +192,7 @@
                             </div>
                             <iframe id="player" style="width: 100%; height: 23em; border-radius:1em; margin-top: 1em" src="https://open.spotify.com/embed/playlist/{{ trip.playlist_id }}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
                         </div>
-                    {% elif is_user_in_trip %}
+                    {% elif is_user_in_trip and votes|length > 0 %}
                         <div class="ui segment">
                             <div class="ui content" style="font-size: 1.25em">
                                 How was your trip?
@@ -200,7 +200,7 @@
                             {% for receiver, rate in votes.items %}
                                 <div class="ui segment">
                                     <a href="{% url 'account:user_profile' receiver.id %}">{{ receiver.first_name }} {{ receiver.last_name }}:</a>
-                                    <div class="ui star rating" data-rating="{{ rate }}" data-max-rating="5"></div>
+                                    <div class="ui star rating" data-rating="{{ rate }}" data-max-rating="5" id="rate_{{ receiver.id }}"></div>
                                 </div>
 
                             {% endfor %}
@@ -235,16 +235,12 @@
             },
             maxResults: 10,
         });
-    </script>
-    <script>
-        function request_to_join() {
-            window.location.href = '{% url 'trip:trip_request' trip.id %}';
-        }
+        var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
+        $.ajaxSetup({headers: { "X-CSRFToken": csrftoken }});
 
         function update_page(action) {
             var url = '{% url 'trip:trip' trip.id %}';
-            var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
-            var post_data = {'X-CSRFToken': csrftoken, 'type': 'PUT', 'action': action};
+            var post_data = {'type': 'PUT', 'action': action};
             if (action === "leave") {
                 post_data.user_id = {{ user.id }};
             }
@@ -257,6 +253,28 @@
         }
 
         $('.ui.rating').rating();
+        {% for receiver, rate in votes.items %}
+            {% if not rate %}
+                $('#rate_{{ receiver.id }}').rating('setting', 'onRate', function (value) {
+                    $('#rate_{{ receiver.id }}').rating('disable');
+                    var url = '{% url 'trip:trip' trip.id %}';
+                    var post_data = {};
+                    post_data['receiver_id'] = '{{ receiver.id }}';
+                    post_data['rate'] = value;
+                    $.post(url, post_data, function (response, status) {
+                        console.log(response)
+                    })
+                });
+            {% else %}
+                $('#rate_{{ receiver.id }}').rating('disable');
+            {% endif %}
+        {% endfor %}
+
+    </script>
+    <script>
+        function request_to_join() {
+            window.location.href = '{% url 'trip:trip_request' trip.id %}';
+        }
     </script>
 {% endblock %}
 
