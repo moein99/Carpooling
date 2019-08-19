@@ -8,7 +8,8 @@ from model_mommy import mommy
 
 from account.models import Member
 from group.models import Group, Membership
-from trip.models import Trip, TripGroups, Companionship, TripRequestSet, TripRequest
+from trip.models import Trip, TripGroups, Companionship, TripRequestSet, TripRequest, Vote
+from trip.utils import SpotifyAgent
 
 
 class TripCreationTest(TestCase):
@@ -444,3 +445,111 @@ class ManageTripRequestsTest(TestCase):
             'action': 'accept',
         })
         self.assertEqual(response.status_code, HttpResponseForbidden.status_code)
+
+
+class ManageTripPageTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.car_provider = Member.objects.create(username="car_provider")
+        self.car_provider.set_password("12345678")
+        self.car_provider.save()
+        self.passenger = Member.objects.create(username="passenger")
+        self.passenger.set_password("12345678")
+        self.passenger.save()
+        self.authenticated_user = Member.objects.create(username="authenticated_user")
+        self.authenticated_user.set_password("12345678")
+        self.authenticated_user.save()
+        self.trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS, capacity=2)
+        Companionship.objects.create(member=self.passenger, trip=self.trip, source=self.trip.source, destination=self.trip.destination)
+
+    def test_updating_status_by_provider(self):
+        self.client.login(username="car_provider", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'update_status'}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip.status, self.trip.CLOSED_STATUS)
+        self.trip.status = self.trip.DONE_STATUS
+        self.trip.save()
+        self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(self.trip.status, self.trip.DONE_STATUS)
+
+    def test_updating_status_by_member(self):
+        self.client.login(username="passenger", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'update_status'}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.trip.status, self.trip.WAITING_STATUS)
+
+    def test_provider_leaving(self):
+        self.client.login(username="car_provider", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'leave', 'user_id': self.car_provider.id}
+        spotify_agent = SpotifyAgent()
+        self.trip.playlist_id = spotify_agent.create_playlist('test_playlist')
+        self.trip.save()
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip.car_provider, None)
+        self.assertEqual(self.trip.playlist_id, None)
+        self.assertEqual(self.trip.status, self.trip.CANCELED_STATUS)
+
+    def test_passenger_leaving(self):
+        self.client.login(username="passenger", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'leave', 'user_id': self.passenger.id}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.passenger not in self.trip.passengers.all())
+
+    def test_member_leaving(self):
+        self.client.login(username="authenticated_user", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'leave', 'user_id': self.authenticated_user.id}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 400)
+
+    def test_trip_opening_by_provider(self):
+        self.client.login(username="car_provider", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'open_trip'}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.trip.status, self.trip.WAITING_STATUS)
+        self.trip.status = self.trip.CLOSED_STATUS
+        self.trip.save()
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip.status, self.trip.WAITING_STATUS)
+
+    def test_trip_opening_by_member(self):
+        self.client.login(username="passenger", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'open_trip'}
+        self.trip.status = self.trip.CLOSED_STATUS
+        self.trip.save()
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.trip.status, self.trip.CLOSED_STATUS)
+
+    def test_vote_member_not_in_trip(self):
+        self.client.login(username="authenticated_user", password="12345678")
+        post_data = {'receiver_id': self.passenger.id, 'rate': 5}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 403)
+        vote_exists = Vote.objects.filter(sender=self.authenticated_user, receiver=self.passenger, rate=5,
+                                          trip=self.trip).exists()
+        self.assertFalse(vote_exists)
+
+    def test_vote_in_wrong_status(self):
+        self.client.login(username="passenger", password="12345678")
+        post_data = {'receiver_id': self.passenger.id, 'rate': 5}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 403)
+        vote_exists = Vote.objects.filter(sender=self.authenticated_user, receiver=self.passenger, rate=5,
+                                          trip=self.trip).exists()
+        self.assertFalse(vote_exists)
+
+
+

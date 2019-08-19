@@ -170,38 +170,58 @@ class TripDetailView(DetailView):
     model = Trip
     template_name = 'trip_page.html'
 
+    def get_context_data(self, **kwargs):
+        context = super(TripDetailView, self).get_context_data(**kwargs)
+        context['is_user_in_trip'] = self.is_user_in_trip()
+        context['user_request_already_sent'] = self.is_request_already_sent()
+        if self.object.status == self.object.DONE_STATUS and context['is_user_in_trip']:
+            context['votes'] = self.get_votes()
+        return context
+
     @check_request_type
     def post(self, request, pk):
         self.object = self.get_object()
         receiver = Member.objects.get(id=int(self.request.POST['receiver_id']))
         rate = self.request.POST['rate']
-        self.create_vote(receiver, rate)
-        return HttpResponse("OK")
+        if self.is_vote_request_valid(receiver, rate):
+            is_vote_created = self.create_vote(receiver, rate)
+            if is_vote_created:
+                return HttpResponse("OK")
+        return HttpResponseForbidden("permission denied")
 
-    def get_context_data(self, **kwargs):
-        context = super(TripDetailView, self).get_context_data(**kwargs)
-        context['is_user_in_trip'] = self.is_user_in_trip()
-        context['user_request_already_sent'] = self.is_request_already_sent()
-        if context['is_user_in_trip']:
-            context['votes'] = self.get_votes()
-        return context
+    def is_vote_request_valid(self, receiver, rate):
+        return self.is_user_in_trip(self.request.user) and self.object.status == self.object.DONE_STATUS and \
+               receiver != self.request.user and 1 < rate < 5 and self.is_user_in_trip(receiver)
 
     def put(self, request, pk):
         action = self.request.POST['action']
         self.object = self.get_object()
         if action == "leave":
-            user_id = self.request.POST['user_id']
-            self.handle_member_leaving_trip(user_id)
-            return HttpResponse(str(reverse('root:home')))
-        elif action == "update_status":
-            self.update_status()
-            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
-        elif action == "open_trip":
-            self.open_trip()
-            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+            if self.is_user_in_trip(self.request.user):
+                user_id = self.request.POST['user_id']
+                self.handle_member_leaving_trip(user_id)
+                return HttpResponse(str(reverse('root:home')))
+            else:
+                return HttpResponseBadRequest('User is not in trip')
 
-    def is_user_in_trip(self):
-        return self.request.user in self.object.passengers.all() or self.request.user == self.object.car_provider
+        elif action == "update_status":
+            if request.user == self.object.car_provider:
+                self.update_status()
+                return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+            else:
+                return HttpResponseForbidden('Permission denied')
+
+        elif action == "open_trip":
+            if request.user == self.object.car_provider:
+                if self.object.status == self.object.CLOSED_STATUS:
+                    self.open_trip()
+                    return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+                return HttpResponseForbidden("Trip is not in Closed status")
+            else:
+                return HttpResponseForbidden('Permission denied')
+
+    def is_user_in_trip(self, user):
+        return user in self.object.passengers.all() or user == self.object.car_provider
 
     def is_request_already_sent(self):
         return TripRequest.objects.filter(trip=self.object, status=TripRequest.PENDING_STATUS,
@@ -256,51 +276,10 @@ class TripDetailView(DetailView):
         return receivers
 
     def create_vote(self, receiver, rate):
-        Vote.objects.create(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object)
-
-
-class TripVoteManager(View):
-    @method_decorator(login_required)
-    def get(self, request, trip_id):
-        members = []
-        rate = []
-        trip = Trip.objects.get(id=trip_id)
-        members.extend(trip.passengers.all())
-        members.append(trip.car_provider)
-        members.remove(request.user)
-        for i in range(len(members)):
-            try:
-                object = Vote.objects.get(sender=request.user, receiver=members[i])
-                rate.append(object.rate)
-            except Vote.DoesNotExist:
-                rate.append(None)
-        members_rate = {}
-        for i in range(len(members)):
-            members_rate[members[i]] = rate[i]
-        return render(request, 'trip_vote_manage.html', {'members_rate': members_rate, 'trip_id': trip_id})
-
-    @method_decorator(login_required)
-    def post(self, request, trip_id):
-        receiver = request.POST.get('receiver')
-        rate = request.POST.get('rate')
-        object = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip_id=trip_id)
-        object.save()
-        members = []
-        rate = []
-        trip = Trip.objects.get(id=trip_id)
-        members.extend(trip.passengers.all())
-        members.append(trip.car_provider)
-        members.remove(request.user)
-        for i in range(len(members)):
-            try:
-                object = Vote.objects.get(sender=request.user, receiver=members[i])
-                rate.append(object.rate)
-            except Vote.DoesNotExist:
-                rate.append(None)
-        members_rate = {}
-        for i in range(len(members)):
-            members_rate[members[i]] = rate[i]
-        return render(request, "trip_vote_manage.html", {'members_rate': members_rate, 'trip_id': trip_id})
+        if not Vote.objects.filter(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object).exists():
+            Vote.objects.create(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object)
+            return True
+        return False
 
 
 class TripGroupsManager(View):
