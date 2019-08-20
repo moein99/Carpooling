@@ -35,6 +35,10 @@
         {% include 'top_bar.html' %}
     {% endblock %}
 
+    <div id="items-container">
+        {% block items %} {% endblock %}
+    </div>
+
     <div id="body-container">
         {% block body %}{% endblock %}
     </div>
