@@ -218,6 +218,7 @@
             </div>
         {% endif %}
     </div>
+
     {% csrf_token %}
     <script>
         var url = "{% url 'trip:spotify_search' trip.id 'query' %}".replace('query', '{query}');
@@ -235,6 +236,7 @@
             },
             maxResults: 10,
         });
+
         var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
         $.ajaxSetup({headers: { "X-CSRFToken": csrftoken }});
 
@@ -269,7 +271,6 @@
                 $('#rate_{{ receiver.id }}').rating('disable');
             {% endif %}
         {% endfor %}
-
     </script>
     <script>
         function request_to_join() {

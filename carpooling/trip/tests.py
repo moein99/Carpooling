@@ -544,12 +544,52 @@ class ManageTripPageTest(TestCase):
 
     def test_vote_in_wrong_status(self):
         self.client.login(username="passenger", password="12345678")
-        post_data = {'receiver_id': self.passenger.id, 'rate': 5}
+        post_data = {'receiver_id': self.car_provider.id, 'rate': 5}
         response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
         self.assertEqual(response.status_code, 403)
-        vote_exists = Vote.objects.filter(sender=self.authenticated_user, receiver=self.passenger, rate=5,
+        vote_exists = Vote.objects.filter(sender=self.passenger, receiver=self.car_provider, rate=5,
                                           trip=self.trip).exists()
         self.assertFalse(vote_exists)
+
+    def test_vote_rate_not_in_range(self):
+        self.client.login(username="car_provider", password="12345678")
+        post_data = {'receiver_id': self.passenger.id, 'rate': 7}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 403)
+        vote_exists = Vote.objects.filter(sender=self.car_provider, receiver=self.passenger, rate=7,
+                                          trip=self.trip).exists()
+        self.assertFalse(vote_exists)
+
+    def test_vote_to_myself(self):
+        self.client.login(username="passenger", password="12345678")
+        post_data = {'receiver_id': self.passenger.id, 'rate': 3}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 403)
+        vote_exists = Vote.objects.filter(sender=self.passenger, receiver=self.passenger, rate=3,
+                                          trip=self.trip).exists()
+        self.assertFalse(vote_exists)
+
+    def test_vote_to_outsiders(self):
+        self.client.login(username="passenger", password="12345678")
+        post_data = {'receiver_id': self.authenticated_user.id, 'rate': 4}
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 403)
+        vote_exists = Vote.objects.filter(sender=self.passenger, receiver=self.authenticated_user, rate=4,
+                                          trip=self.trip).exists()
+        self.assertFalse(vote_exists)
+
+    def test_already_submitted_vote(self):
+        self.client.login(username="passenger", password="12345678")
+        post_data = {'receiver_id': self.car_provider.id, 'rate': 4}
+        self.trip.status = self.trip.DONE_STATUS
+        self.trip.save()
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 200)
+        vote_exists = Vote.objects.filter(sender=self.passenger, receiver=self.car_provider, rate=4,
+                                          trip=self.trip).exists()
+        self.assertTrue(vote_exists)
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.assertEqual(response.status_code, 403)
 
 
 

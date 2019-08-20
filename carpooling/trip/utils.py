@@ -34,6 +34,7 @@ class SpotifyAgent:
 
     @staticmethod
     def set_proxy():
+        pass
         os.environ['http_proxy'] = proxy
         os.environ['HTTP_PROXY'] = proxy
         os.environ['https_proxy'] = proxy

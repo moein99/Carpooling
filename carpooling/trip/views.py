@@ -172,7 +172,7 @@ class TripDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super(TripDetailView, self).get_context_data(**kwargs)
-        context['is_user_in_trip'] = self.is_user_in_trip()
+        context['is_user_in_trip'] = self.is_user_in_trip(self.request.user)
         context['user_request_already_sent'] = self.is_request_already_sent()
         if self.object.status == self.object.DONE_STATUS and context['is_user_in_trip']:
             context['votes'] = self.get_votes()
@@ -183,15 +183,15 @@ class TripDetailView(DetailView):
         self.object = self.get_object()
         receiver = Member.objects.get(id=int(self.request.POST['receiver_id']))
         rate = self.request.POST['rate']
-        if self.is_vote_request_valid(receiver, rate):
-            is_vote_created = self.create_vote(receiver, rate)
+        if self.is_vote_request_valid(receiver, int(rate)):
+            is_vote_created = self.create_vote(receiver, int(rate))
             if is_vote_created:
                 return HttpResponse("OK")
         return HttpResponseForbidden("permission denied")
 
     def is_vote_request_valid(self, receiver, rate):
         return self.is_user_in_trip(self.request.user) and self.object.status == self.object.DONE_STATUS and \
-               receiver != self.request.user and 1 < rate < 5 and self.is_user_in_trip(receiver)
+               receiver != self.request.user and 1 <= rate <= 5 and self.is_user_in_trip(receiver)
 
     def put(self, request, pk):
         action = self.request.POST['action']
