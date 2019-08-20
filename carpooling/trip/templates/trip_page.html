@@ -221,7 +221,7 @@
 
     {% csrf_token %}
     <script>
-        var url = "{% url 'trip:spotify_search' trip.id 'query' %}".replace('query', '{query}');
+        var url = "{% cassieurl 'trip:spotify_search' trip.id 'query' %}".replace('query', '{query}');
         $('#spotify_search_box').search({
             type          : 'standard',
             minCharacters : 3,
@@ -237,6 +237,9 @@
             maxResults: 10,
         });
 
+    </script>
+    
+    <script>
         var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
         $.ajaxSetup({headers: { "X-CSRFToken": csrftoken }});
 
@@ -272,6 +275,7 @@
             {% endif %}
         {% endfor %}
     </script>
+
     <script>
         function request_to_join() {
             window.location.href = '{% url 'trip:trip_request' trip.id %}';
