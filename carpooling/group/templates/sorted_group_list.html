@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+    {%for group in group_list %}
+    <li>
+        <a href="{% url 'group:group' group.id %}">{{ group.code }} : {{ group.title }} :{% if group.is_private %}private
+        {% else %}public {% endif %} </a>
+    </li>
+    {% endfor %}
+
+{% endblock %}

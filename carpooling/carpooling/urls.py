@@ -23,11 +23,25 @@ from account import urls as account_urls
 from group import urls as group_urls
 from trip import urls as trip_urls
 from root import urls as root_urls
+from django.contrib.auth import views as auth_views
+
+authentication_urls = [
+    path('login/', auth_views.LoginView.as_view(redirect_authenticated_user=True), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+
+    path('password_change/', auth_views.PasswordChangeView.as_view(), name='password_change'),
+    path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(), name='password_change_done'),
+
+    path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'),
+    path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+]
 
 urlpatterns = [
                 path('admin/', admin.site.urls),
                 path('account/', include(account_urls, namespace='account')),
-                path('account/', include(auth_urls)),
+                path('account/', include(authentication_urls)),
                 path('group/', include(group_urls, namespace='group')),
                 path('trip/', include(trip_urls, namespace='trip')),
                 path('', include(root_urls, namespace='root'))

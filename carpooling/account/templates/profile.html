@@ -76,6 +76,14 @@
                     <a href="{% url 'account:user_profile' member.id %}?edit=true">
                         Edit your profile
                     </a>
+                    <br>
+                    <a href="{% url 'account:request_history' %}">
+                        Manage your requests
+                    </a>
+                    <br>
+                    <a href="{% url 'account:trip_history' %}">
+                        Your trip history
+                    </a>
                 {% endif %}
             </div>
             <div class="ui divider"></div>
