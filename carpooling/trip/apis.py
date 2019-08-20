@@ -3,6 +3,8 @@ import json
 from django.http import HttpResponseBadRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+
+from root.decorators import only_get_allowed
 from .utils import ItemType
 
 from trip.models import Trip
@@ -27,13 +29,11 @@ def search(query):
     return search_results
 
 
+@only_get_allowed
 def add_to_playlist(request, trip_id, item_id, item_type):
-    if request.method == "GET":
-        playlist_id = Trip.objects.get(id=trip_id).playlist_id
-        SpotifyAgent().add_item_to_playlist(playlist_id, item_id, item_type)
-        return redirect(reverse('trip:trip_music_player', kwargs={"trip_id": trip_id}))
-    else:
-        return HttpResponseBadRequest("method not implemented")
+    playlist_id = Trip.objects.get(id=trip_id).playlist_id
+    SpotifyAgent().add_item_to_playlist(playlist_id, item_id, item_type)
+    return redirect(reverse('trip:trip', kwargs={"trip_id": trip_id}))
 
 
 def append_add_to_playlist_url(items, trip_id):
