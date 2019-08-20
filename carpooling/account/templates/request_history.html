@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}
+    Request History
+{% endblock %}
+{% block body %}
+    <div>
+        {% for trip_request_set in trip_request_sets %}
+            <li style="border: 1px solid; padding: 2px; margin:4px">
+                {{ trip_request_set.title }}
+                {% if not trip_request_set.closed %}
+                    <form name="close_set" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="type" value="PUT">
+                        <input type="hidden" name="target" value="set">
+                        <input type="hidden" name="id" value={{ trip_request_set.id }}>
+                        <input type="submit" value="close"/>
+                    </form>
+                {% endif %}
+                <p>
+                    {% for trip_request in trip_request_set.requests.all %}
+                        <li>
+                            Source location is '{{ trip_request.source }}'
+                            <br>
+                            Destination location is '{{ trip_request.destination }}'
+                            <br>
+                            This request is {{ trip_request.get_status_display }}
+                            {% if trip_request.is_pending %}
+                                <br>
+                                <form name="close_set" method="POST">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="type" value="PUT">
+                                    <input type="hidden" name="target" value="request">
+                                    <input type="hidden" name="id" value={{ trip_request.id }}>
+                                    <input type="submit" value="close"/>
+                                </form>
+                            {% endif %}
+                            <br>
+                            <a href="{% url "trip:trip" trip_request.trip_id %}">Go to trip</a>
+                        </li>
+
+                    {% endfor %}
+            </li>
+        {% endfor %}
+    </div>
+    <br>
+{% endblock %}

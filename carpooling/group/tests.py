@@ -179,7 +179,7 @@ class AddMemberToGroupTest(TestCase):
 
     def test_unauthorized_delete_member(self):
         member, group = self.get_objects(True)
-        mommy.make(Membership, group_id=group.id, member_id=member.id, role='me')
+        mommy.make(Membership, group_id=group.id, member_id=member.id, role='me', )
         response = self.client.post(reverse('group:group_members', kwargs={'group_id': group.id}), data={
             'type': 'DELETE',
             'member_id': member.id,
@@ -204,7 +204,7 @@ class AddMemberToGroupTest(TestCase):
     def get_objects(self, is_private):
         self.client.login(username='test_user', password='1234')
         group = mommy.make(Group, is_private=is_private)
-        member = mommy.make(Member)
+        member = mommy.make(Member, _fill_optional=['email'])
         return member, group
 
 

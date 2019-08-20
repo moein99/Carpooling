@@ -1,12 +1,15 @@
 import json
+from math import radians, sin, cos, sqrt, atan2
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
-from django.http import HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse
+from django.db.models import Q
+from django.http import HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
+from numpy import source
 
 from account.models import Member
 from group.forms import GroupForm
@@ -145,3 +148,30 @@ class SearchGroupManager:
     def get_group_json(group):
         return {'title': group.title, 'description': group.description,
                 'url': reverse('group:group', kwargs={'group_id': group.id})}
+
+@login_required
+def sort(request):
+    if request.method == "GET":
+        lat = float(request.GET['source_lat'])
+        lon = float(request.GET['source_lon'])
+        user_owner_group = Membership.objects.filter(member=request.user, group__is_private=True).exclude(group__source=None)
+        group_list = [membership.group for membership in user_owner_group]
+        group_list.extend(Group.objects.filter(is_private=False).exclude(source=None))
+        group_list = sorted(group_list, key=lambda x: getDistance(lat, lon, x.source.x, x.source.y))
+        return render(request, "sorted_group_list.html", {"group_list": group_list})
+    else:
+        HttpResponseBadRequest("Bad Request")
+
+
+def getDistance(lat1, lon1, lat2, lon2):
+    R = 6373.0
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+    lat2 = radians(lat2)
+    lon2 = radians(lon2)
+    distance_lon = lon2 - lon1
+    distance_lat = lat2 - lat1
+    a = sin(distance_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(distance_lon / 2) ** 2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    return distance

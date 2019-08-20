@@ -1,12 +1,15 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models.aggregates import Sum
-from django.http import HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.timezone import now
 from django.views import generic
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic.base import View
 
 from account.forms import *
@@ -19,6 +22,14 @@ class SignUp(generic.CreateView):
     form_class = SignupForm
     success_url = reverse_lazy('login')
     template_name = 'signup.html'
+
+    @method_decorator(sensitive_post_parameters())
+    @method_decorator(csrf_protect)
+    @method_decorator(never_cache)
+    def dispatch(self, request, *args, **kwargs):
+        if self.request.user.is_authenticated:
+            return HttpResponseRedirect(reverse('root:home'))
+        return super().dispatch(request, *args, **kwargs)
 
 
 class UserProfileManager(View):
