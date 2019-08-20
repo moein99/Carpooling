@@ -12,13 +12,11 @@ class Trip(models.Model):
     CLOSED_STATUS = 'cl'
     IN_ROUTE_STATUS = 'in'
     DONE_STATUS = 'dn'
-    CANCELED_STATUS = 'ca'
     STATUS_CHOICES = [
         (WAITING_STATUS, 'waiting'),
         (CLOSED_STATUS, 'closed'),
         (IN_ROUTE_STATUS, 'in route'),
-        (DONE_STATUS, 'done'),
-        (CANCELED_STATUS, 'canceled')
+        (DONE_STATUS, 'done')
     ]
     source = gis_models.PointField()
     destination = gis_models.PointField()
@@ -32,7 +30,7 @@ class Trip(models.Model):
     start_estimation = models.DateTimeField()
     end_estimation = models.DateTimeField()
     trip_description = models.CharField(max_length=200, null=True)
-    playlist_id = models.CharField(max_length=22, null=True)
+    playlist_id = models.CharField(max_length=22)
 
     @classmethod
     def get_accessible_trips_for(cls, user):

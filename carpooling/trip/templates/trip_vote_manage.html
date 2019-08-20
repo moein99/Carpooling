@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block body %}
+    {% for member, rate in members_rate.items %}
+        {% if rate == None %}
+            {{ member.username }}
+            <form method="post">
+                {% csrf_token %}
+                <input type="radio" name="rate" value='1'> 1
+                <input type="radio" name="rate" value='2'> 2
+                <input type="radio" name="rate" value='3'> 3
+                <input type="radio" name="rate" value='4'> 4
+                <input type="radio" name="rate" value='5'> 5
+                <input type="hidden" name="receiver" value={{ member.id }}>
+                <input type= "submit" value="Submit">
+            </form>
+        {% else %}
+            {{ member.username }}: {{ rate }}
+        {% endif %}
+    {% endfor %}
+{% endblock %}
