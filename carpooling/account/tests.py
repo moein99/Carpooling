@@ -140,7 +140,7 @@ class CommentTest(TestCase):
         user = mommy.make(Member, username='moein', _fill_optional=['email'])
         user.set_password('1234')
         user.save()
-        user = mommy.make(Member, username='moein1' , _fill_optional=['email'])
+        user = mommy.make(Member, username='moein1', _fill_optional=['email'])
         user.set_password('1234')
         user.save()
 
@@ -221,7 +221,8 @@ class TripRequestHistoryTest(TestCase):
         self.client.login(username='moein', password='1234')
         test_trip = mommy.make(Trip)
         test_request_set = mommy.make(TripRequestSet, applicant=self.user)
-        test_request = mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set, status=TripRequest.ACCEPTED_STATUS)
+        test_request = mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set,
+                                  status=TripRequest.ACCEPTED_STATUS)
         response = self.client.post(reverse("account:request_history"), data={
             'type': 'PUT',
             'target': 'request',
@@ -230,4 +231,19 @@ class TripRequestHistoryTest(TestCase):
         self.assertEqual(response.status_code, 400)
 
 
+class TestSentMail(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.sender = mommy.make(Member, username='moein', _fill_optional=['email'])
+        self.sender.set_password('1234')
+        self.sender.save()
+        self.receiver = mommy.make(Member, username='moein2', _fill_optional=['email'])
+        self.receiver.set_password('1234')
+        self.receiver.save()
+        self.mail = mommy.make(Mail, receiver=self.receiver, sender=self.sender)
 
+    def test_send_mail(self):
+        self.client.login(username='moein', password='1234')
+        response = self.client.get(reverse("account:user_sent_messages"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["mails"][0], self.mail)
