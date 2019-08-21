@@ -9,6 +9,7 @@ from django.views.generic.base import View
 
 from account.forms import MailForm
 from account.models import Member, Mail
+from root.decorators import only_get_allowed
 
 
 class MailManager(View):
@@ -36,3 +37,12 @@ class MailManager(View):
             mail_obj.save()
             return True
         return False
+
+
+@login_required
+@only_get_allowed
+def get_sent_mails(request):
+    mails = Mail.objects.filter(sender=request.user)
+    return render(request, "sent_messages.html", {
+        "mails": mails
+    })
