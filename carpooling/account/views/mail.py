@@ -12,6 +12,7 @@ from account.models import Member, Mail
 
 
 class MailManager(View):
+
     @method_decorator(login_required)
     def get(self, request):
         Mail.objects.filter(is_mail_seen=False, receiver=request.user).update(is_mail_seen=True)
