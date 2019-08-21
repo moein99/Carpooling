@@ -148,7 +148,7 @@ class TripRequestManager(View):
             return HttpResponseBadRequest()
 
         # TODO: Handle action field in template
-        action = request.POST.get('action')
+        action = request.POST.get('action', 'accept')
         if action == 'accept':
             try:
                 cls.accept_trip_request(trip, trip_request_id)
@@ -283,9 +283,9 @@ class TripDetailView(DetailView):
     def update_status(self):
         if self.object.status == self.object.WAITING_STATUS:
             self.object.status = self.object.CLOSED_STATUS
-        if self.object.status == self.object.CLOSED_STATUS:
+        elif self.object.status == self.object.CLOSED_STATUS:
             self.object.status = self.object.IN_ROUTE_STATUS
-        if self.object.status == self.object.IN_ROUTE_STATUS:
+        elif self.object.status == self.object.IN_ROUTE_STATUS:
             self.object.status = self.object.DONE_STATUS
             self.delete_playlist()
         self.object.save()
