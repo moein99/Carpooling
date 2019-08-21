@@ -208,7 +208,7 @@ class TripDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['is_user_in_trip'] = self.is_user_in_trip(self.request.user)
-        context['user_request_already_sent'] = self.is_request_already_sent()
+        context['user_request_already_sent'] = self.is_join_request_already_sent()
         if self.object.status == self.object.DONE_STATUS and context['is_user_in_trip']:
             context['votes'] = self.get_votes()
         return context
@@ -216,6 +216,9 @@ class TripDetailView(DetailView):
     @check_request_type
     def post(self, request, pk):
         self.object = self.get_object()
+        return self.handle_vote_request()
+
+    def handle_vote_request(self):
         receiver = Member.objects.get(id=int(self.request.POST['receiver_id']))
         rate = self.request.POST['rate']
         if self.is_vote_request_valid(receiver, int(rate)):
@@ -229,36 +232,40 @@ class TripDetailView(DetailView):
                receiver != self.request.user and 1 <= rate <= 5 and self.is_user_in_trip(receiver)
 
     def put(self, request, pk):
-        action = self.request.POST['action']
         self.object = self.get_object()
+        action = self.request.POST['action']
         if action == "leave":
-            if self.is_user_in_trip(self.request.user):
-                user_id = self.request.POST['user_id']
-                self.handle_member_leaving_trip(user_id)
-                return HttpResponse(str(reverse('root:home')))
-            else:
-                return HttpResponseBadRequest('User is not in trip')
+            return self.handle_leave_request()
 
-        elif action == "update_status":
-            if request.user == self.object.car_provider:
-                self.update_status()
-                return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
-            else:
-                return HttpResponseForbidden('Permission denied')
+        if action == "update_status":
+            return self.handle_updating_trip_request()
 
-        elif action == "open_trip":
-            if request.user == self.object.car_provider:
-                if self.object.status == self.object.CLOSED_STATUS:
-                    self.open_trip()
-                    return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
-                return HttpResponseForbidden("Trip is not in Closed status")
-            else:
-                return HttpResponseForbidden('Permission denied')
+        if action == "open_trip":
+            self.handle_opening_trip_request()
+
+    def handle_leave_request(self):
+        if self.is_user_in_trip(self.request.user):
+            user_id = self.request.POST['user_id']
+            self.handle_member_leaving_trip(user_id)
+            return HttpResponse(str(reverse('root:home')))
+        return HttpResponseBadRequest('User is not in trip')
+
+    def handle_updating_trip_request(self):
+        if self.request.user == self.object.car_provider:
+            self.update_status()
+            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+        return HttpResponseForbidden('Permission denied')
+
+    def handle_opening_trip_request(self):
+        if self.request.user == self.object.car_provider and self.object.status == self.object.CLOSED_STATUS:
+            self.open_trip()
+            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+        return HttpResponseForbidden('Permission denied')
 
     def is_user_in_trip(self, user):
         return user in self.object.passengers.all() or user == self.object.car_provider
 
-    def is_request_already_sent(self):
+    def is_join_request_already_sent(self):
         return TripRequest.objects.filter(trip=self.object, status=TripRequest.PENDING_STATUS,
                                           containing_set__applicant=self.request.user).exists()
 
@@ -276,9 +283,9 @@ class TripDetailView(DetailView):
     def update_status(self):
         if self.object.status == self.object.WAITING_STATUS:
             self.object.status = self.object.CLOSED_STATUS
-        elif self.object.status == self.object.CLOSED_STATUS:
+        if self.object.status == self.object.CLOSED_STATUS:
             self.object.status = self.object.IN_ROUTE_STATUS
-        elif self.object.status == self.object.IN_ROUTE_STATUS:
+        if self.object.status == self.object.IN_ROUTE_STATUS:
             self.object.status = self.object.DONE_STATUS
             self.delete_playlist()
         self.object.save()
