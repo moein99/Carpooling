@@ -12,13 +12,13 @@ class ReportManager(View):
     @method_decorator(login_required)
     def get(self, request, member_id):
         if member_id == request.user.id:
-            return HttpResponse("You can not report your self", status=401)
+            return HttpResponse("You can not report your self", status=403)
         return render(request, "report.html", {"form": ReportForm()})
 
     @method_decorator(login_required)
     def post(self, request, member_id):
         if member_id == request.user.id:
-            return HttpResponse("You can not report your self", status=401)
+            return HttpResponse("You can not report your self", status=403)
         if ReportManager.create_report(request.user.id, member_id, request.POST):
             return redirect(reverse('account:user_profile', kwargs={'user_id': member_id}))
         return render(request, "report.html", {"form": ReportForm()})

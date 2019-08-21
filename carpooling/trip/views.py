@@ -99,10 +99,10 @@ class TripRequestManager(View):
     def post(self, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user == trip.car_provider:
-            return HttpResponse('Not Allowed', status=401)
+            return HttpResponse('Not Allowed', status=403)
 
         if trip not in Trip.get_accessible_trips_for(request.user):
-            return HttpResponse('You have not access to this trip', status=401)
+            return HttpResponse('You have not access to this trip', status=403)
 
         if trip.status != trip.WAITING_STATUS:
             return HttpResponse('Trip status is not waiting', status=400)
@@ -138,7 +138,7 @@ class TripRequestManager(View):
     def put(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user != trip.car_provider:
-            return HttpResponse('Not Allowed', status=401)
+            return HttpResponse('Not Allowed', status=403)
 
         if trip.status != trip.WAITING_STATUS:
             return HttpResponse('Trip status is not waiting', status=400)
@@ -405,5 +405,5 @@ def get_chat_interface(request, trip_id):
 @login_required
 @only_get_allowed
 def get_playlist_view(request, trip_id):
-    playlist_id = Trip.objects.get(id=trip_id).playlist_id
+    playlist_id = get_object_or_404(Trip, id=trip_id).playlist_id
     return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})

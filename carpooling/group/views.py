@@ -65,7 +65,7 @@ class GroupManager(View):
     def get(self, request, group_id):
         group, membership = get_group_membership(request.user, group_id)
         if group.is_private and membership is None:
-            return HttpResponse("You are not a member of this group", status=401)
+            return HttpResponse("You are not a member of this group", status=403)
         is_owner, has_joined = manage_group_authorization(membership)
         return render(request, "manage_group.html", {
             'group': group,
@@ -78,7 +78,7 @@ class GroupManager(View):
         errors = []
         group, membership = get_group_membership(request.user, group_id)
         if group.is_private and membership is None:
-            return HttpResponse("You are not a member of this group", status=401)
+            return HttpResponse("You are not a member of this group", status=403)
         is_owner, has_joined = manage_group_authorization(membership)
         request_action = request.POST['action']
         if request_action == 'join' and not has_joined:
@@ -105,7 +105,7 @@ class GroupMembersManager(View):
     def get(self, request, group_id):
         group, membership = get_group_membership(request.user, group_id)
         if group.is_private and membership is None:
-            return HttpResponse("you are not a member of this group", status=401)
+            return HttpResponse("you are not a member of this group", status=403)
         is_owner = False
         if membership and membership.role == 'ow':
             is_owner = True
@@ -127,11 +127,11 @@ class GroupMembersManager(View):
         group, membership = get_group_membership(request.user, group_id)
         member_id = request.POST.get('member_id', None)
         if group.is_private and membership is None:
-            return HttpResponseForbidden("You are not authorized to remove a member")
+            return HttpResponse("You are not authorized to remove a member", status=403)
         if membership and membership.role == 'ow':
             get_object_or_404(Membership, group_id=group.id, member_id=member_id).delete()
             return redirect(reverse('group:group_members', kwargs={'group_id': group_id}))
-        return HttpResponse("You are not authorized to remove a member", status=401)
+        return HttpResponse("You are not authorized to remove a member", status=403)
 
 
 class SearchGroupManager:

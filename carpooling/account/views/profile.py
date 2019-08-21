@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models.aggregates import Sum
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponseRedirect, HttpResponseNotFound, \
     HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -49,19 +49,16 @@ class UserProfileManager(View):
     @login_required
     def get_edit_profile(request, member_id):
         if member_id != request.user.id:
-            return HttpResponse('Not Allowed', status=401)
+            return HttpResponse('Not Allowed', status=403)
         form = EditProfileForm(instance=request.user)
         return render(request, "edit_profile.html", {"form": form})
 
     @staticmethod
     def get_profile(request, member_id):
-        try:
-            profile_elements = UserProfileManager.get_user_basic_data(Member.objects.get(id=member_id))
-            if request.user.is_authenticated:
-                profile_elements = UserProfileManager.add_member_specific_data(profile_elements, request.user, member_id)
-            return render(request, 'profile.html', profile_elements)
-        except Member.DoesNotExist:
-            return HttpResponse('User Not Found', status=400)
+        profile_elements = UserProfileManager.get_user_basic_data(get_object_or_404(Member, id=member_id))
+        if request.user.is_authenticated:
+            profile_elements = UserProfileManager.add_member_specific_data(profile_elements, request.user, member_id)
+        return render(request, 'profile.html', profile_elements)
 
     @staticmethod
     def get_user_basic_data(user):
@@ -96,10 +93,7 @@ class UserProfileManager(View):
 
     @staticmethod
     def is_reported(reporter_id, reported_id):
-        try:
-            return abs((now() - Report.objects.get(reporter_id=reporter_id, reported_id=reported_id).date).days) < 10
-        except Report.DoesNotExist:
-            return False
+        return abs((now() - get_object_or_404(Report, reporter_id=reporter_id, reported_id=reported_id).date).days) < 10
 
     @method_decorator(login_required)
     @check_request_type
@@ -123,7 +117,7 @@ class UserProfileManager(View):
     @method_decorator(login_required)
     def put(self, request, user_id):
         if user_id != request.user.id:
-            return HttpResponse("Not Allowed", status=401)
+            return HttpResponse("Not Allowed", status=403)
         UserProfileManager.update_member_profile(request)
         return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
 
