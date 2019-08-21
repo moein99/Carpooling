@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.http import HttpResponseBadRequest, HttpResponseGone
+from django.http import HttpResponseBadRequest, HttpResponseGone, HttpResponse
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -40,7 +40,7 @@ class TripCreationManger(View):
         trip = cls.create_trip(request.user, request.POST)
         if trip is not None:
             return redirect(reverse('trip:add_to_groups', kwargs={'trip_id': trip.id}))
-        return HttpResponseBadRequest('Invalid Request')
+        return HttpResponse('Request Not Allowed', status=405)
 
     @classmethod
     def create_trip(cls, car_provider: Member, post_data):
@@ -71,15 +71,15 @@ class TripRequestManager(View):
 
         if request.user == trip.car_provider:
             if trip.status != trip.WAITING_STATUS:
-                return HttpResponseGone('Trip status is not waiting')
+                return HttpResponse('Trip status is not waiting', status=400)
             return cls.show_trip_requests(request, trip)
 
         elif trip in Trip.get_accessible_trips_for(request.user):
             if trip.status != trip.WAITING_STATUS:
-                return HttpResponseGone('Trip status is not waiting')
+                return HttpResponse('Trip status is not waiting', status=400)
             return cls.show_create_request_form(request)
         else:
-            return HttpResponseForbidden('You have not access to this trip')
+            return HttpResponse('You have not access to this trip', status=401)
 
     @staticmethod
     def show_trip_requests(request, trip, error=None):
@@ -99,13 +99,13 @@ class TripRequestManager(View):
     def post(self, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user == trip.car_provider:
-            return HttpResponseForbidden()
+            return HttpResponse('Not Allowed', status=403)
 
         if trip not in Trip.get_accessible_trips_for(request.user):
-            return HttpResponseForbidden('You have not access to this trip')
+            return HttpResponse('You have not access to this trip', status=403)
 
         if trip.status != trip.WAITING_STATUS:
-            return HttpResponseGone('Trip status is not waiting')
+            return HttpResponse('Trip status is not waiting', status=400)
 
         source = extract_source(request.POST)
         destination = extract_destination(request.POST)
@@ -138,15 +138,15 @@ class TripRequestManager(View):
     def put(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user != trip.car_provider:
-            return HttpResponseForbidden()
+            return HttpResponse('Not Allowed', status=403)
 
         if trip.status != trip.WAITING_STATUS:
-            return HttpResponseGone('Trip status is not waiting')
+            return HttpResponse('Trip status is not waiting', status=400)
 
         try:
             trip_request_id = int(request.POST.get('request_id'))
         except (ValueError, TypeError):
-            return HttpResponseBadRequest()
+            return HttpResponse('Bad Request', status=400)
 
         # TODO: Handle action field in template
         action = request.POST.get('action')
@@ -160,7 +160,7 @@ class TripRequestManager(View):
             cls.decline_request(trip, trip_request_id)
             return cls.show_trip_requests(request, trip)
         else:
-            return HttpResponseBadRequest('Unknown action')
+            return HttpResponse('Unknown action', status=400)
 
     @staticmethod
     @atomic
@@ -199,7 +199,7 @@ class AutomaticJoinRequestManager(View):
                 return redirect(reverse('trip:trip', kwargs={'trip_id': trip.id}))
             return render(request, 'trip_not_found.html')
 
-        return HttpResponseBadRequest()
+        return HttpResponse('Bad Request', status=400)
 
 
 @login_required
@@ -212,7 +212,7 @@ def get_trip_page_view(request, trip_id):
             'trip': trip,
         })
     else:
-        return HttpResponseForbidden()
+        return HttpResponse('Trip Dose Not Exists', status=404)
 
 
 class TripVoteManager(View):
@@ -220,7 +220,7 @@ class TripVoteManager(View):
     def get(self, request, trip_id):
         members = []
         rate = []
-        trip = Trip.objects.get(id=trip_id)
+        trip = get_object_or_404(Trip, id=trip_id)
         members.extend(trip.passengers.all())
         members.append(trip.car_provider)
         members.remove(request.user)
@@ -243,7 +243,7 @@ class TripVoteManager(View):
         vote.save()
         members = []
         rate = []
-        trip = Trip.objects.get(id=trip_id)
+        trip = get_object_or_404(Trip, id=trip_id)
         members.extend(trip.passengers.all())
         members.append(trip.car_provider)
         members.remove(request.user)
@@ -268,7 +268,7 @@ class TripGroupsManager(View):
     @method_decorator(login_required)
     def post(self, request, trip_id):
         user_nearby_groups = TripGroupsManager.get_nearby_groups(request.user, trip_id)
-        trip = Trip.objects.get(id=trip_id)
+        trip = get_object_or_404(Trip, id=trip_id)
         for group in user_nearby_groups:
             if request.POST.get(group.code, None) == 'on':
                 TripGroups.objects.create(group=group, trip=trip)
@@ -305,7 +305,7 @@ class SearchTripsManager(View):
     def get(cls, request):
         if cls.is_valid_search_parameter(request.GET):
             return cls.do_search(request) if request.GET else render(request, "search_trip.html")
-        return HttpResponseBadRequest()
+        return HttpResponse('Request Not Allowed', status=405)
 
     @classmethod
     def do_search(cls, request):
@@ -405,5 +405,5 @@ def get_chat_interface(request, trip_id):
 @login_required
 @only_get_allowed
 def get_playlist_view(request, trip_id):
-    playlist_id = Trip.objects.get(id=trip_id).playlist_id
+    playlist_id = get_object_or_404(Trip, id=trip_id).playlist_id
     return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})
