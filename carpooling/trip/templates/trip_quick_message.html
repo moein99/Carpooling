@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}
+    Chose your message
+{% endblock %}
+{% block body %}
+    <form method="post">
+        {% csrf_token %}
+        <select name="message">
+            {% for message in messages %}
+                <option value="{{ message }}">{{ message }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="Submit">
+    </form>
+{% endblock %}

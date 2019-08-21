@@ -1,4 +1,5 @@
 from datetime import datetime
+from django.utils import timezone
 
 import numpy as np
 from django.contrib.auth.decorators import login_required
@@ -14,13 +15,15 @@ from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
 
+from account.forms import MailForm
 from account.models import Member
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
-from trip.forms import TripForm, TripRequestForm, AutomaticJoinTripForm
+from trip.forms import TripForm, TripRequestForm, AutomaticJoinTripForm, QuickMailForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
-from trip.utils import extract_source, extract_destination, get_trip_score
+from trip.utils import extract_source, extract_destination, get_trip_score, CAR_PROVIDER_QUICK_MESSAGES, \
+    PASSENGER_QUICK_MESSAGES
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
 from trip.utils import extract_source, extract_destination
@@ -191,7 +194,8 @@ class AutomaticJoinRequestManager(View):
 
     @classmethod
     def post(cls, request):
-        form = AutomaticJoinTripForm(data=request.POST, user=request.user, trip_score_threshold=cls.TRIP_SCORE_THRESHOLD)
+        form = AutomaticJoinTripForm(data=request.POST, user=request.user,
+                                     trip_score_threshold=cls.TRIP_SCORE_THRESHOLD)
 
         if form.is_valid():
             trip = form.join_a_trip_automatically()
@@ -407,3 +411,52 @@ def get_chat_interface(request, trip_id):
 def get_playlist_view(request, trip_id):
     playlist_id = Trip.objects.get(id=trip_id).playlist_id
     return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})
+
+
+class QuickMessageTripManager(View):
+    @method_decorator(login_required)
+    def get(self, request, trip_id, user_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
+            return HttpResponseBadRequest()
+        if trip.car_provider == request.user and Companionship.objects.filter(trip_id=trip_id,
+                                                                              member_id=user_id).exists():
+            return render(request, "trip_quick_message.html", {"messages": CAR_PROVIDER_QUICK_MESSAGES})
+        elif Companionship.objects.filter(trip_id=trip_id,
+                                          member_id=request.user.id).exists() and trip.car_provider_id == user_id:
+            return render(request, "trip_quick_message.html", {"messages": PASSENGER_QUICK_MESSAGES})
+        return HttpResponseForbidden()
+
+    @method_decorator(login_required)
+    def post(self, request, trip_id, user_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
+            return HttpResponseBadRequest()
+        if trip.car_provider == request.user and Companionship.objects.filter(trip_id=trip_id,
+                                                                              member_id=user_id).exists():
+            if QuickMessageTripManager.create_mail(request.user, request.POST, user_id):
+                return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
+            else:
+                return HttpResponseBadRequest()
+        elif Companionship.objects.filter(trip_id=trip_id,
+                                          member_id=request.user.id).exists() and trip.car_provider_id == user_id:
+            if QuickMessageTripManager.create_mail(request.user, request.POST, user_id):
+                return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
+            else:
+                return HttpResponseBadRequest()
+        return HttpResponseForbidden()
+
+    @staticmethod
+    def create_mail(sender, post_data, receiver_id):
+        mail_form = QuickMailForm(data=post_data)
+        print(post_data.get("message"))
+        if mail_form.is_valid():
+            mail_obj = mail_form.save(commit=False)
+            mail_obj.sender = sender
+            mail_obj.receiver = Member.objects.get(id=receiver_id)
+            mail_obj.sent_time = timezone.now()
+            mail_obj.is_mail_seen = False
+            mail_obj.save()
+            return True
+        return False
+

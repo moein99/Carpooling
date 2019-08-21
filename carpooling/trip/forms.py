@@ -3,6 +3,7 @@ from django import forms
 from django.contrib.gis.geos import Point
 from django.db.transaction import atomic
 
+from account.models import Mail
 from trip.models import Trip, TripRequest, Companionship
 from trip.utils import get_trip_score
 
@@ -162,3 +163,9 @@ class AutomaticJoinTripForm(forms.Form):
     class Meta:
         fields = ['source_lat', 'source_lng', 'destination_lat', 'destination_lng', 'start_estimation',
                   'end_estimation']
+
+
+class QuickMailForm(forms.ModelForm):
+    class Meta:
+        fields = ('message',)
+        model = Mail

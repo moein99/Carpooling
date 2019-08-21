@@ -12,6 +12,11 @@ from carpooling.settings import SPOTIFY_CLIENT_ID, SPOTIFY_USERNAME, SPOTIFY_CLI
 
 proxy = 'proxy.roo.cloud:3128'
 
+CAR_PROVIDER_QUICK_MESSAGES = ["I have arrived", "Where are you?", "I will be there in five.",
+                               "I will be running late.", "It is gonna take more than half hour to get to you."]
+PASSENGER_QUICK_MESSAGES = ["Where are you?", "When are you gonna be here?", "I will be there in five.",
+                            "Go on with out me.", "I will be running late."]
+
 
 class ItemType:
     TRACK = "track"
