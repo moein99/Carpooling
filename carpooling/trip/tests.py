@@ -538,13 +538,13 @@ class AutomaticallyJoinTripTest(TestCase):
 class ManageTripPageTest(TestCase):
     def setUp(self):
         self.client = Client()
-        self.car_provider = Member.objects.create(username="car_provider")
+        self.car_provider = Member.objects.create(username="car_provider", email="person1@gmail.com")
         self.car_provider.set_password("12345678")
         self.car_provider.save()
-        self.passenger = Member.objects.create(username="passenger")
+        self.passenger = Member.objects.create(username="passenger", email="person2@gmail.com")
         self.passenger.set_password("12345678")
         self.passenger.save()
-        self.authenticated_user = Member.objects.create(username="authenticated_user")
+        self.authenticated_user = Member.objects.create(username="authenticated_user", email="person3@gmail.com")
         self.authenticated_user.set_password("12345678")
         self.authenticated_user.save()
         self.trip = mommy.make(Trip, car_provider=self.car_provider, status=Trip.WAITING_STATUS, capacity=2)
