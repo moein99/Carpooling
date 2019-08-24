@@ -93,7 +93,10 @@ class UserProfileManager(View):
 
     @staticmethod
     def is_reported(reporter_id, reported_id):
-        return abs((now() - get_object_or_404(Report, reporter_id=reporter_id, reported_id=reported_id).date).days) < 10
+        report = Report.objects.filter(reporter_id=reporter_id, reported_id=reported_id).order_by('-date').first()
+        if report:
+            return abs((now() - report.date).days) < 10
+        return False
 
     @method_decorator(login_required)
     @check_request_type
