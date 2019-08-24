@@ -166,11 +166,11 @@ LOGGING = {
 
     'formatters': {
         'verbose': {
-            'format': '{name} {levelname} {asctime} {process:d} {thread:d} {message}',
+            'format': '{asctime} {name} {funcName} {lineno} {levelname} {process:d} {thread:d} "{message}"',
             'style': '{',
         },
         'simple': {
-            'format': '{name} {funcName} {lineno} {levelname} {message}',
+            'format': '{levelname} {message}',
             'style': '{',
         },
         'django.server': {
@@ -196,7 +196,7 @@ LOGGING = {
             'level': 'DEBUG',
             'filters': ['require_debug_true'],
             'class': 'logging.StreamHandler',
-            'formatter': 'simple'
+            'formatter': 'verbose'
         },
 
         'django.server': {
@@ -207,7 +207,7 @@ LOGGING = {
 
         'logfile': {
             'level': 'INFO',
-            # 'filters': ['require_debug_false'],
+            'filters': ['require_debug_false'],
             'formatter': 'django.server',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'carpooling.log'),
