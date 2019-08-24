@@ -195,7 +195,7 @@ class AutomaticJoinRequestManager(View):
         if form.is_valid():
             trip = form.join_a_trip_automatically()
             if trip is not None:
-                return redirect(reverse('trip:trip', kwargs={'trip_id': trip.id}))
+                return redirect(reverse('trip:trip', kwargs={'pk': trip.id}))
             return render(request, 'trip_not_found.html')
 
         return HttpResponseBadRequest()

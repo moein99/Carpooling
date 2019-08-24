@@ -361,7 +361,7 @@ class CreateTripRequestTest(TestCase):
             'new_request_set_title': 'Title',
         })
 
-        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'pk': self.trip.id}))
 
         new_trip_request_set = TripRequestSet.objects.get(title='Title')
         new_trip_request = TripRequest.objects.get(containing_set=new_trip_request_set, trip=self.trip)
@@ -508,7 +508,7 @@ class AutomaticallyJoinTripTest(TestCase):
             'end_estimation': '2006-10-25 15:30:58',
         })
 
-        self.assertRedirects(response, reverse('trip:trip', kwargs={'trip_id': self.trip.id}))
+        self.assertRedirects(response, reverse('trip:trip', kwargs={'pk': self.trip.id}))
 
     def test_automatically_join_nearby_out_of_time_range_trip(self):
         response = self.c.post(reverse('trip:automatically_join_trip'), {
@@ -570,18 +570,18 @@ class ManageTripPageTest(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.trip.status, self.trip.WAITING_STATUS)
 
-    # def test_provider_leaving(self):
-    #     self.client.login(username="car_provider", password="12345678")
-    #     post_data = {'type': 'PUT', 'action': 'leave', 'user_id': self.car_provider.id}
-    #     spotify_agent = SpotifyAgent()
-    #     self.trip.playlist_id = spotify_agent.create_playlist('test_playlist')
-    #     self.trip.save()
-    #     response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
-    #     self.trip.refresh_from_db()
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertEqual(self.trip.car_provider, None)
-    #     self.assertEqual(self.trip.playlist_id, None)
-    #     self.assertEqual(self.trip.status, self.trip.CANCELED_STATUS)
+    def test_provider_leaving(self):
+        self.client.login(username="car_provider", password="12345678")
+        post_data = {'type': 'PUT', 'action': 'leave', 'user_id': self.car_provider.id}
+        spotify_agent = SpotifyAgent()
+        self.trip.playlist_id = spotify_agent.create_playlist('test_playlist')
+        self.trip.save()
+        response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
+        self.trip.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.trip.car_provider, None)
+        self.assertEqual(self.trip.playlist_id, None)
+        self.assertEqual(self.trip.status, self.trip.CANCELED_STATUS)
 
     def test_passenger_leaving(self):
         self.client.login(username="passenger", password="12345678")
