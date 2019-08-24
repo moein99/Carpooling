@@ -1,0 +1,42 @@
+{% extends 'base.html' %} {% load semanticui %}
+
+{% block extra_header %}
+    <style>
+        #inbox {
+            margin-right: 1em;
+            background-color: white;
+            box-shadow: 0.25em 0.25em 0.25em grey
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="ui centered grid" style="margin-top: 3em">
+        <div id="inbox" class="eight wide column">
+            <div class="ui internally celled center aligned grid">
+                {% for mail in mails %}
+                    <div class="row">
+                        <div class="four wide column">
+                            <div class="item">
+                                {% if mail.receiver.profile_picture %}
+                                    <img class="ui avatar small circular image" src="{{ mail.receiver.profile_picture.url }}" alt="prof">
+                                {% else %}
+                                    <img class="ui avatar small circular image" src="../../static/images/user_default_image.png" alt="prof">
+                                {% endif %}
+                                <div class="ui segment">
+                                    <p style="word-break: break-all">{{ mail.receiver.username }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="twelve wide column">
+                            <div class="ui segment">
+                                <p style="word-break: break-all">{{ mail.message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

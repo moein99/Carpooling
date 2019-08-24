@@ -2,8 +2,8 @@
 
 {% block menu_tags %}
     <a href="{% url 'root:home' %}" class="item" id="menu_item">
-            <i class="home icon"></i>
-            Home
+        <i class="home icon"></i>
+        Home
     </a>
     <a href="{% url 'group:groups_list' %}" class="item" id="menu_item">
         <i class="users icon"></i>
@@ -18,14 +18,18 @@
             <div class="ui icon input">
                 <input class="prompt" type="text" placeholder="Search people...">
                 <i class="search icon"></i>
-          </div>
+            </div>
         </div>
     </div>
-    <a  href="{% url 'account:user_inbox' %}" class="item" id="inbox-icon">
+    <a href="{% url 'account:user_sent_messages' %}" class="item" id="menu_item">
+        <i class="mail icon"></i>
+        Mail Sent
+    </a>
+    <a href="{% url 'account:user_inbox' %}" class="item" id="inbox-icon">
         <i class="mail icon"></i>
         Inbox
     </a>
-    <a  href="{% url 'account:user_profile' request.user.id %}" class="item" id="menu_item">
+    <a href="{% url 'account:user_profile' request.user.id %}" class="item" id="menu_item">
         <i class="user icon"></i>
         Profile
     </a>
@@ -37,9 +41,9 @@
     <script>
         var url = "{% url 'root:search_people' 'query' %}".replace('query', '{query}');
         $('#people_search_box').search({
-            type          : 'standard',
-            minCharacters : 2,
-            apiSettings   : {
+            type: 'standard',
+            minCharacters: 2,
+            apiSettings: {
                 url: url
             },
             fields: {

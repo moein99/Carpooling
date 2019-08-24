@@ -34,7 +34,7 @@ class TripCreationTest(TestCase):
                      'destination_lat': '-1', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
         response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 405)
 
     def test_invalid_capacity(self):
         post_data = {'is_private': False, 'capacity': 21, 'start_estimation': '2006-10-25 14:30:57',
@@ -42,10 +42,10 @@ class TripCreationTest(TestCase):
                      'destination_lat': '-1', 'destination_lng': '14.23',
                      'trip_description': 'holy_test'}
         response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 405)
         post_data['capacity'] = 0
         response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 405)
 
     def test_invalid_point(self):
         post_data = {'is_private': False, 'capacity': 18, 'start_estimation': '2006-10-25 14:30:57',
@@ -53,7 +53,7 @@ class TripCreationTest(TestCase):
                      'destination_lat': '-1', 'destination_lng': '-1',
                      'trip_description': 'holy_test'}
         response = self.client.post(reverse('trip:trip_creation'), post_data, follow=True)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 405)
 
 
 class GetTripsWithAnonymousUserTest(TestCase):
@@ -322,7 +322,7 @@ class CreateTripRequestTest(TestCase):
             'create_new_request_set': True,
             'new_request_set_title': 'Title'
         })
-        self.assertEqual(response.status_code, HttpResponseGone.status_code)
+        self.assertEqual(response.status_code, 400)
 
     def test_not_accessible_trip(self):
         Membership.objects.filter(member=self.applicant).delete()
