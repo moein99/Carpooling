@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseNotAllowed, HttpResponseBadRequest
+from django.http import HttpResponseNotAllowed, HttpResponseBadRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
@@ -29,7 +29,7 @@ class RequestHistoryManager(View):
             RequestHistoryManager.close_request_set(request.POST.get("id"))
         elif target == "request":
             if not RequestHistoryManager.cancel_request(request.POST.get("id")):
-                return HttpResponseBadRequest()
+                return HttpResponse("Bad Request", status=400)
 
         trip_request_sets = TripRequestSet.objects.filter(applicant=request.user)
         return render(request, "request_history.html", {

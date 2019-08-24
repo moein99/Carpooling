@@ -12,18 +12,18 @@ from trip.models import Trip, Companionship, TripRequestSet, TripRequest
 
 class MemberProfileTest(TestCase):
     def setUp(self):
-        self.temp_acount = Member.objects.create(username="testuser")
+        self.temp_acount = mommy.make(Member, username="testuser", _fill_optional=['email'])
         self.temp_acount.set_password('majid123')
         self.temp_acount.save()
 
     def test_anonymous(self):
-        member = mommy.make(Member)
+        member = mommy.make(Member, _fill_optional=['email'])
         response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id': member.id}))
         self.assertEqual(response.status_code, 200)
 
     def test_other_members(self):
         self.client.login(username='testuser', password='majid123')
-        member = mommy.make(Member)
+        member = mommy.make(Member, _fill_optional=['email'])
         response = self.client.get(path=reverse('account:user_profile', kwargs={'user_id': member.id}))
         self.assertEqual(response.status_code, 200)
 
@@ -34,14 +34,14 @@ class MemberProfileTest(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_post_request(self):
-        member = mommy.make(Member)
+        member = mommy.make(Member, _fill_optional=['email'])
         response = self.client.post(path=reverse('account:user_profile', kwargs={'user_id': member.id}))
         self.assertEqual(response.status_code, 302)
 
 
 class EditProfileTest(TestCase):
     def setUp(self):
-        self.temp_acount = Member.objects.create(id=1, username="testuser", first_name="javad")
+        self.temp_acount = mommy.make(Member, id=1, username="testuser", first_name="javad", _fill_optional=['email'])
         self.temp_acount.set_password('majid123')
         self.temp_acount.save()
 
@@ -83,13 +83,13 @@ class EditProfileTest(TestCase):
 
 class ReportTest(TestCase):
     def setUp(self):
-        self.temp_acount = Member.objects.create(username="testuser", first_name="javad")
+        self.temp_acount = mommy.make(Member, username="testuser", first_name="javad", _fill_optional=['email'])
         self.temp_acount.set_password('majid123')
         self.temp_acount.save()
 
     def test_reporting(self):
         self.client.login(username='testuser', password='majid123')
-        member = mommy.make(Member)
+        member = mommy.make(Member, _fill_optional=['email'])
         response = self.client.post(path=reverse('account:report_user', kwargs={'member_id': member.id}),
                                     data={'description': 'he is a bad guy'})
         self.assertEqual(response.status_code, 302)
@@ -97,7 +97,7 @@ class ReportTest(TestCase):
         self.assertEqual(1, len(test_report))
 
     def test_reporting_anonymus(self):
-        member = mommy.make(Member)
+        member = mommy.make(Member, _fill_optional=['email'])
         response = self.client.post(path=reverse('account:report_user', kwargs={'member_id': member.id}),
                                     data={'description': 'he is a bad guy'})
         self.assertEqual(response.status_code, 302)
@@ -113,10 +113,10 @@ class ReportTest(TestCase):
 class InboxTest(TestCase):
     def setUp(self):
         self.client = Client()
-        user = mommy.make(Member, username='moein')
+        user = mommy.make(Member, username='moein', _fill_optional=['email'])
         user.set_password('1234')
         user.save()
-        user = mommy.make(Member, username='moein1')
+        user = mommy.make(Member, username='moein1', _fill_optional=['email'])
         user.set_password('1234')
         user.save()
 
@@ -137,10 +137,10 @@ class InboxTest(TestCase):
 class CommentTest(TestCase):
     def setUp(self):
         self.client = Client()
-        user = mommy.make(Member, username='moein')
+        user = mommy.make(Member, username='moein', _fill_optional=['email'])
         user.set_password('1234')
         user.save()
-        user = mommy.make(Member, username='moein1')
+        user = mommy.make(Member, username='moein1', _fill_optional=['email'])
         user.set_password('1234')
         user.save()
 
@@ -221,7 +221,8 @@ class TripRequestHistoryTest(TestCase):
         self.client.login(username='moein', password='1234')
         test_trip = mommy.make(Trip)
         test_request_set = mommy.make(TripRequestSet, applicant=self.user)
-        test_request = mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set, status=TripRequest.ACCEPTED_STATUS)
+        test_request = mommy.make(TripRequest, trip=test_trip, containing_set=test_request_set,
+                                  status=TripRequest.ACCEPTED_STATUS)
         response = self.client.post(reverse("account:request_history"), data={
             'type': 'PUT',
             'target': 'request',
@@ -230,4 +231,19 @@ class TripRequestHistoryTest(TestCase):
         self.assertEqual(response.status_code, 400)
 
 
+class TestSentMail(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.sender = mommy.make(Member, username='moein', _fill_optional=['email'])
+        self.sender.set_password('1234')
+        self.sender.save()
+        self.receiver = mommy.make(Member, username='moein2', _fill_optional=['email'])
+        self.receiver.set_password('1234')
+        self.receiver.save()
+        self.mail = mommy.make(Mail, receiver=self.receiver, sender=self.sender)
 
+    def test_send_mail(self):
+        self.client.login(username='moein', password='1234')
+        response = self.client.get(reverse("account:user_sent_messages"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["mails"][0], self.mail)

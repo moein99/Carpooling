@@ -1,10 +1,7 @@
-{% extends 'base.html' %}
+{% extends 'map.html' %}
+
 
 {% block body %}
-    <br>
-    <div id='map' style="width: 100em; height: 50em;"></div>
-    <br>
-
     <form method="POST">
         {% csrf_token %}
         {{ form.media }}
@@ -17,36 +14,6 @@
     </form>
 
     <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoibW9laW45OSIsImEiOiJjanlwdml1cmkxZjlvM25ub29ibWx6MXZ6In0.qeTaEdOQHEbgUXTapsbj0A';
-        var coordinates = document.getElementById('coordinates');
-        var map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v11',
-        center: [51.40, 35.70],
-        zoom: 11
-        });
-
-        var source_marker = new mapboxgl.Marker({
-            draggable: true
-            }).setLngLat([51.40, 35.70]).addTo(map).setPopup(new mapboxgl.Popup({ offset: 25 }) // add popups
-        .setHTML('<h3>Source</h3>'));
-
-        var destination_marker = new mapboxgl.Marker({
-            draggable: true
-            }).setLngLat([51.30, 35.70]).addTo(map).setPopup(new mapboxgl.Popup({ offset: 25 }) // add popups
-        .setHTML('<h3>Destination</h3>'));
-
-        function onDragEnd() {
-            const source_lngLat = source_marker.getLngLat();
-            const destination_lngLat = destination_marker.getLngLat();
-            document.getElementById('id_source_lat').value = source_lngLat.lat;
-            document.getElementById('id_source_lng').value = source_lngLat.lng;
-            document.getElementById('id_destination_lat').value = destination_lngLat.lat;
-            document.getElementById('id_destination_lng').value = destination_lngLat.lng;
-        }
-        source_marker.on('dragend', onDragEnd);
-        destination_marker.on('dragend', onDragEnd);
-
         let labels = document.getElementsByTagName('LABEL');
         for (let i = 0; i < labels.length; i++) {
             if (labels[i].htmlFor !== '') {
