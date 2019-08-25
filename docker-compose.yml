@@ -5,17 +5,28 @@ services:
     env_file:
       - env_vars.env
     build: .
-    command: python3 /code/carpooling/manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/code
+    restart: always
+    command: >
+      bash -c "
+        sleep 1 &&
+        python3 /code/carpooling/manage.py migrate --settings carpooling.settings_docker &&
+        python3 /code/carpooling/manage.py runserver 0.0.0.0:8000 --settings carpooling.settings_docker
+        "
     ports:
       - "8000:8000"
     depends_on:
       - db
+  
   db:
-    image: kartoza/postgis:9.6-2.4
+    image: docker.repos.cafebazaar.ir/mdillon/postgis
+    restart: always
     environment:
       - POSTGRES_HOST=db
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_NAME=carpooling_db
+      - POSTGRES_NAME=postgres
       - POSTGRES_USER=carpooling
+    volumes:
+      - "dbdata:/var/lib/postgresql/data"
+
+volumes:
+  dbdata:
+

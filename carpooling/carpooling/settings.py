@@ -49,8 +49,9 @@ INSTALLED_APPS = [
 ]
 
 # Handle session is not Json Serializable
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
-SESSION_ENGINE = 'redis_sessions.session'
+# SESSION_ENGINE = 'mongo_sessions.session'
+# MONGO_SESSIONS_TTL = 8 * 60 * 60  # Equivalent to 8 hours
+# SESSION_SAVE_EVERY_REQUEST = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -60,11 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'carpooling.middleware.AutoLogout'
 ]
-
-# Auto logout delay in minutes
-AUTO_LOGOUT_DELAY_IN_MINUTES = 8 * 60  # equivalent to 8 hours
 
 ROOT_URLCONF = 'carpooling.urls'
 
