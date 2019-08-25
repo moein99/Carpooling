@@ -1,5 +1,7 @@
+import os
 from datetime import datetime
 
+import jwt
 import numpy as np
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
@@ -190,7 +192,8 @@ class AutomaticJoinRequestManager(View):
 
     @classmethod
     def post(cls, request):
-        form = AutomaticJoinTripForm(data=request.POST, user=request.user, trip_score_threshold=cls.TRIP_SCORE_THRESHOLD)
+        form = AutomaticJoinTripForm(data=request.POST, user=request.user,
+                                     trip_score_threshold=cls.TRIP_SCORE_THRESHOLD)
 
         if form.is_valid():
             trip = form.join_a_trip_automatically()
@@ -206,11 +209,13 @@ class TripDetailView(DetailView):
     template_name = 'trip_page.html'
 
     def get_context_data(self, **kwargs):
+        self.object = self.get_object()
         context = super(TripDetailView, self).get_context_data(**kwargs)
         context['is_user_in_trip'] = self.is_user_in_trip(self.request.user)
         context['user_request_already_sent'] = self.is_join_request_already_sent()
         if self.object.status == self.object.DONE_STATUS and context['is_user_in_trip']:
             context['votes'] = self.get_votes()
+        context['jwt'] = self.make_chat_jwt()
         return context
 
     @check_request_type
@@ -322,6 +327,13 @@ class TripDetailView(DetailView):
             Vote.objects.create(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object)
             return True
         return False
+
+    def make_chat_jwt(self):
+        if self.request.user == self.object.car_provider or \
+                Companionship.objects.filter(trip_id=self.object.id, member_id=self.request.user.id).exists():
+            return jwt.encode({'username': self.request.user.username, 'trip': self.object.id},
+                              os.environ['CARPOOLING_JWT_KEY'])
+        return None
 
 
 class TripGroupsManager(View):
