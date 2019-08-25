@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  web:
+    env_file:
+      - env_vars.env
+    build: .
+    command: python3 /code/carpooling/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+  db:
+    image: kartoza/postgis:9.6-2.4
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_NAME=carpooling_db
+      - POSTGRES_USER=carpooling
