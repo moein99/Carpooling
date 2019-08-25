@@ -224,7 +224,7 @@
         var url = "{% url 'trip:spotify_search' trip.id 'query' %}".replace('query', '{query}');
         $('#spotify_search_box').search({
             type          : 'standard',
-            minCharacters : 3,
+            minCharacters : 2,
             apiSettings   : {
                 url: url
             },
