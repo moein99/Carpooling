@@ -33,9 +33,9 @@
                     joined_list_item.appendChild(joined_description);
                 {% endif %}
                 var joined_source = document.createElement('p');
-                joined_source.appendChild(document.createTextNode('Source location is {{ trip.source}}'));
+                joined_source.appendChild(document.createTextNode('Source location is {{ trip.source.x }} , {{ trip.source.y }}'));
                 var joined_destination = document.createElement('p');
-                joined_destination.appendChild(document.createTextNode('Destination location is {{ trip.destination}}'));
+                joined_destination.appendChild(document.createTextNode('Destination location is {{ trip.destination.x }} , {{ trip.destination.y }}'));
                 var joined_is_private = document.createElement('p');
                 {% if trip.is_private %}
                     joined_is_private.appendChild(document.createTextNode('Trip is a private trip'));
