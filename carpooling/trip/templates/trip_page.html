@@ -109,6 +109,10 @@
                         {% if trip.status != trip.CANCELED_STATUS %}
                             <td>
                                 <a href="{% url 'account:user_profile' trip.car_provider.id %}">{{ trip.car_provider.first_name }} {{ trip.car_provider.last_name }}</a>
+                                {% if trip.status == trip.IN_ROUTE_STATUS and user in trip.passengers.all %}
+                                    <a href="{% url "trip:trip_quick_message" trip.id trip.car_provider.id %}">send a quick
+                                        message</a>
+                                {% endif %}
                             </td>
                         {% else %}
                             <td>No one</td>
@@ -151,6 +155,10 @@
                                 <tr>
                                     <td data-label="Joined People"><a
                                             href="{% url 'account:user_profile' member.id %}">{{ member.first_name }} {{ member.last_name }}</a>
+                                        {% if trip.status == trip.IN_ROUTE_STATUS and user == trip.car_provider %}
+                                            <a href="{% url "trip:trip_quick_message" trip.id member.id %}">send a quick
+                                                message</a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -243,9 +251,9 @@
     <script>
         var url = "{% url 'trip:spotify_search' trip.id 'query' %}".replace('query', '{query}');
         $('#spotify_search_box').search({
-            type: 'standard',
-            minCharacters: 3,
-            apiSettings: {
+            type          : 'standard',
+            minCharacters : 2,
+            apiSettings   : {
                 url: url
             },
             fields: {

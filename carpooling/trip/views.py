@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from django.utils import timezone
 
 import jwt
 import numpy as np
@@ -16,11 +17,16 @@ from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
 
+from account.forms import MailForm
 from account.models import Member
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
 from trip.forms import AutomaticJoinTripForm
+from trip.forms import TripForm, TripRequestForm, AutomaticJoinTripForm, QuickMailForm
+from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
+from trip.utils import extract_source, extract_destination, get_trip_score, CAR_PROVIDER_QUICK_MESSAGES, \
+    PASSENGER_QUICK_MESSAGES
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
 from trip.utils import extract_source, extract_destination
@@ -463,3 +469,52 @@ def get_available_trips_view(request):
     trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
         is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
     return render(request, 'trip_manager.html', {'trips': trips})
+
+
+class QuickMessageTripManager(View):
+    @method_decorator(login_required)
+    def get(self, request, trip_id, user_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
+            return HttpResponseBadRequest()
+        if self.is_car_provider_to_companion(request.user, trip, user_id):
+            return render(request, "trip_quick_message.html", {"messages": CAR_PROVIDER_QUICK_MESSAGES})
+        if self.is_companion_to_car_provider(request.user, trip, user_id):
+            return render(request, "trip_quick_message.html", {"messages": PASSENGER_QUICK_MESSAGES})
+        return HttpResponseForbidden()
+
+    @staticmethod
+    def is_car_provider_to_companion(user, trip, companion_id):
+        return trip.car_provider == user and Companionship.objects.filter(trip_id=trip.id,
+                                                                          member_id=companion_id).exists()
+
+    @staticmethod
+    def is_companion_to_car_provider(user, trip, companion_id):
+        return trip.car_provider == companion_id and Companionship.objects.filter(trip_id=trip.id,
+                                                                                  member_id=user.id).exists()
+
+    @method_decorator(login_required)
+    def post(self, request, trip_id, user_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
+            return HttpResponseBadRequest()
+        if self.is_car_provider_to_companion(request.user, trip, user_id) or self.is_companion_to_car_provider(
+                request.user, trip, user_id):
+            if QuickMessageTripManager.create_mail(request.user, request.POST, user_id):
+                return redirect(reverse('trip:trip', kwargs={'pk': trip_id}))
+            return HttpResponseBadRequest()
+        return HttpResponseForbidden()
+
+    @staticmethod
+    def create_mail(sender, post_data, receiver_id):
+        mail_form = QuickMailForm(data=post_data)
+        print(post_data.get("message"))
+        if mail_form.is_valid():
+            mail_obj = mail_form.save(commit=False)
+            mail_obj.sender = sender
+            mail_obj.receiver = Member.objects.get(id=receiver_id)
+            mail_obj.sent_time = timezone.now()
+            mail_obj.is_mail_seen = False
+            mail_obj.save()
+            return True
+        return False
