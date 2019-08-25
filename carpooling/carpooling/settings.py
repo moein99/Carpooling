@@ -61,6 +61,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'request_logging.middleware.LoggingMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -166,16 +167,16 @@ LOGGING = {
 
     'formatters': {
         'verbose': {
-            'format': '{asctime} {name} {funcName} {lineno} {levelname} {process:d} {thread:d} "{message}"',
+            'format': '[{asctime}] {process:d} {thread:d} {name} {funcName} {lineno} {levelname} "{message}"',
             'style': '{',
         },
         'simple': {
             'format': '{levelname} {message}',
             'style': '{',
         },
-        'django.server': {
+        'django.request': {
             '()': 'django.utils.log.ServerFormatter',
-            'format': '[{server_time}] {message}',
+            'format': '[{server_time}] {name} @{user} {levelname} {message}',
             'style': '{',
         }
     },
@@ -188,6 +189,9 @@ LOGGING = {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse',
         },
+        'request_user_filter': {
+            '()': 'carpooling.filters.RequestUserFilter'
+        },
     },
 
 
@@ -199,16 +203,16 @@ LOGGING = {
             'formatter': 'verbose'
         },
 
-        'django.server': {
+        'django.request': {
             'level': 'INFO',
+            'filters': ['request_user_filter', 'require_debug_false'],
             'class': 'logging.StreamHandler',
-            'formatter': 'django.server',
+            'formatter': 'django.request',
         },
 
         'logfile': {
             'level': 'INFO',
-            'filters': ['require_debug_false'],
-            'formatter': 'django.server',
+            'formatter': 'django.request',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'carpooling.log'),
             'maxBytes': 50 * 2**20,  # 50MB
@@ -238,20 +242,29 @@ LOGGING = {
 
     'loggers': {
         'django': {
+            'propagate': True,
+        },
+
+        'django.request': {
+            'handlers': ['django.request', 'logfile'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+
+        'django.server': {
             'handlers': ['null'],
             'propagate': False,
         },
 
-        'django.server': {
-            'handlers': ['django.server', 'mail_admins', 'logfile'],
-            'level': 'INFO',
+        'django.utils.autoreload': {
+            'handlers': ['null'],
             'propagate': False,
         },
 
         '': {
             'level': 'DEBUG',
             'handlers': ['console', 'mail_admins', 'mongolog'],
-            'propagate': True,
+            'propagate': False,
         }
     }
 }

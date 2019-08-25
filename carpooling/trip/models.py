@@ -8,11 +8,13 @@ from group.models import Group
 
 
 class Trip(models.Model):
+    CANCELED_STATUS = 'ca'
     WAITING_STATUS = 'wa'
     CLOSED_STATUS = 'cl'
     IN_ROUTE_STATUS = 'in'
     DONE_STATUS = 'dn'
     STATUS_CHOICES = [
+        (CANCELED_STATUS, 'canceled'),
         (WAITING_STATUS, 'waiting'),
         (CLOSED_STATUS, 'closed'),
         (IN_ROUTE_STATUS, 'in route'),
@@ -31,11 +33,6 @@ class Trip(models.Model):
     end_estimation = models.DateTimeField()
     trip_description = models.CharField(max_length=200, null=True)
     playlist_id = models.CharField(max_length=22)
-
-    @classmethod
-    def get_accessible_trips_for(cls, user):
-        return cls.objects.filter(Q(is_private=False) | Q(groups__membership__member=user) | Q(car_provider=user) | Q(
-            companionship__member=user))
 
     @classmethod
     def get_accessible_trips_for(cls, user):

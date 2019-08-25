@@ -1,5 +1,3 @@
-from datetime import timezone
-
 from dateutil.parser import parse
 from django.contrib.gis.geos import Point
 from django.db.models import Q
@@ -10,6 +8,7 @@ from model_mommy import mommy
 
 from account.models import Member
 from group.models import Group, Membership
+from root.response import HttpResponseConflict
 from trip.models import Trip, TripGroups, Companionship, TripRequestSet, TripRequest
 
 
@@ -199,8 +198,9 @@ class GetTripsWithAuthenticatedUserTest(TestCase):
         self.assertEqual(response.status_code, 200)
         trips = response.context['trips']
         user = self.test_user_1
-        self.assertEqual(list((user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
-            is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)), list(trips))
+        self.assertEqual(list(Trip.objects.filter(Q(is_private=False) | Q(groups__membership__member=user) | Q(
+            car_provider=user) | Q(companionship__member=user)).exclude(
+            Q(status=Trip.DONE_STATUS) | Q(status=Trip.CANCELED_STATUS))), list(trips))
 
 
 class SearchTripTest(TestCase):
@@ -321,7 +321,7 @@ class CreateTripRequestTest(TestCase):
             'create_new_request_set': True,
             'new_request_set_title': 'Title'
         })
-        self.assertEqual(response.status_code, HttpResponseGone.status_code)
+        self.assertEqual(response.status_code, HttpResponseConflict.status_code)
 
     def test_not_accessible_trip(self):
         Membership.objects.filter(member=self.applicant).delete()
@@ -422,7 +422,7 @@ class ManageTripRequestsTest(TestCase):
 
     def test_accept_full_trip_request(self):
         for i in range(self.trip.capacity):
-            mommy.make(Companionship, trip=self.trip, member=mommy.make(Member,_fill_optional=['email']))
+            mommy.make(Companionship, trip=self.trip, member=mommy.make(Member, _fill_optional=['email']))
         response = self.c.post(reverse('trip:trip_request', kwargs={'trip_id': self.trip.id}), {
             'type': 'PUT',
             'request_id': self.trip_request.id,
@@ -478,7 +478,6 @@ class AutomaticallyJoinTripTest(TestCase):
     c = Client(enforce_csrf_checks=False)
 
     def setUp(self):
-
         self.car_provider = mommy.make(Member, username='car_provider', _fill_optional=['email'])
         self.car_provider.set_password('12345678')
         self.car_provider.save()
