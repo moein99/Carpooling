@@ -466,31 +466,32 @@ class QuickMessageTripManager(View):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
             return HttpResponseBadRequest()
-        if trip.car_provider == request.user and Companionship.objects.filter(trip_id=trip_id,
-                                                                              member_id=user_id).exists():
+        if self.is_car_provider_to_companion(request.user, trip, user_id):
             return render(request, "trip_quick_message.html", {"messages": CAR_PROVIDER_QUICK_MESSAGES})
-        elif Companionship.objects.filter(trip_id=trip_id,
-                                          member_id=request.user.id).exists() and trip.car_provider_id == user_id:
+        if self.is_companion_to_car_provider(request.user, trip, user_id):
             return render(request, "trip_quick_message.html", {"messages": PASSENGER_QUICK_MESSAGES})
         return HttpResponseForbidden()
+
+    @staticmethod
+    def is_car_provider_to_companion(user, trip, companion_id):
+        return trip.car_provider == user and Companionship.objects.filter(trip_id=trip.id,
+                                                                          member_id=companion_id).exists()
+
+    @staticmethod
+    def is_companion_to_car_provider(user, trip, companion_id):
+        return trip.car_provider == companion_id and Companionship.objects.filter(trip_id=trip.id,
+                                                                                  member_id=user.id).exists()
 
     @method_decorator(login_required)
     def post(self, request, trip_id, user_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
             return HttpResponseBadRequest()
-        if trip.car_provider == request.user and Companionship.objects.filter(trip_id=trip_id,
-                                                                              member_id=user_id).exists():
+        if self.is_car_provider_to_companion(request.user, trip, user_id) or self.is_companion_to_car_provider(
+                request.user, trip, user_id):
             if QuickMessageTripManager.create_mail(request.user, request.POST, user_id):
                 return redirect(reverse('trip:trip', kwargs={'pk': trip_id}))
-            else:
-                return HttpResponseBadRequest()
-        elif Companionship.objects.filter(trip_id=trip_id,
-                                          member_id=request.user.id).exists() and trip.car_provider_id == user_id:
-            if QuickMessageTripManager.create_mail(request.user, request.POST, user_id):
-                return redirect(reverse('trip:trip', kwargs={'pk': trip_id}))
-            else:
-                return HttpResponseBadRequest()
+            return HttpResponseBadRequest()
         return HttpResponseForbidden()
 
     @staticmethod
