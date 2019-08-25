@@ -8,7 +8,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from model_mommy import mommy
 
-from account.models import Member
+from account.models import Member, Mail
 from group.models import Group, Membership
 from trip.models import Trip, TripGroups, Companionship, TripRequestSet, TripRequest, Vote
 from trip.utils import SpotifyAgent
@@ -678,3 +678,98 @@ class ManageTripPageTest(TestCase):
         self.assertTrue(vote_exists)
         response = self.client.post(reverse('trip:trip', kwargs={'pk': self.trip.id}), post_data)
         self.assertEqual(response.status_code, 403)
+
+
+class QuickMessageTest(TestCase):
+    def setUp(self):
+        self.driver = Member.objects.create_user(username='test_user', password='12345678')
+        self.client = Client()
+        self.test_trip_waiting = mommy.make(Trip, car_provider=self.driver, status=Trip.WAITING_STATUS)
+        self.test_trip_in_route = mommy.make(Trip, car_provider=self.driver, status=Trip.WAITING_STATUS)
+        self.client.login(username='test_user', password='12345678')
+        self.passenger = Member.objects.create_user(username='test_user2', password='12345678')
+        self.second_passenger = Member.objects.create_user(username='test_user3', password='12345678')
+
+    def get_request_not_in_route(self):
+        self.client.login(username='test_user', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_waiting)
+        response = self.client.get(
+            reverse("trip:trip_quick_message",
+                    kwargs={'trip_id': self.test_trip_waiting.id, 'user_id': self.passenger.id}))
+        self.assertEqual(response.status_code, 400)
+
+    def get_request_not_a_passenger(self):
+        self.client.login(username='test_user2', password='12345678')
+        response = self.client.get(
+            reverse("trip:trip_quick_message", kwargs={'trip_id': self.test_trip_in_route.id, 'user_id': self.driver}))
+        self.assertEqual(response.status_code, 400)
+
+    def get_request_passenger_to_passenger(self):
+        self.client.login(username='test_user2', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_in_route)
+        mommy.make(Companionship, member=self.second_passenger, trip=self.test_trip_in_route)
+        response = self.client.get(
+            reverse("trip:trip_quick_message",
+                    kwargs={'trip_id': self.test_trip_in_route.id, 'user_id': self.second_passenger}))
+        self.assertEqual(response.status_code, 400)
+
+    def get_request_as_passenger(self):
+        self.client.login(username='test_user2', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_in_route)
+        response = self.client.get(
+            reverse("trip:trip_quick_message", kwargs={'trip_id': self.test_trip_in_route.id, 'user_id': self.driver}))
+        self.assertEqual(response.status_code, 200)
+
+    def get_request_as_driver(self):
+        self.client.login(username='test_user', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_in_route)
+        response = self.client.get(
+            reverse("trip:trip_quick_message",
+                    kwargs={'trip_id': self.test_trip_in_route.id, 'user_id': self.passenger}))
+        self.assertEqual(response.status_code, 200)
+
+    def post_request_as_driver(self):
+        self.client.login(username='test_user', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_in_route)
+        response = self.client.get(reverse("trip:trip_quick_message",
+                                           kwargs={'trip_id': self.test_trip_in_route.id, 'user_id': self.passenger}),
+                                   {'message': "test"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Mail.objects.filter(receiver=self.passenger, message="test").exists())
+
+    def post_request_as_passenger(self):
+        self.client.login(username='test_user2', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_in_route)
+        response = self.client.post(
+            reverse("trip:trip_quick_message", kwargs={'trip_id': self.test_trip_in_route.id, 'user_id': self.driver}),
+            {'message': "test"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Mail.objects.filter(receiver=self.driver, message="test").exists())
+
+    def post_request_not_in_route(self):
+        self.client.login(username='test_user', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_waiting)
+        response = self.client.post(reverse("trip:trip_quick_message", kwargs={'trip_id': self.test_trip_waiting.id,
+                                                                               'user_id': self.passenger.id}),
+                                    {'message': "test"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Mail.objects.filter(receiver=self.passenger, message="test").exists())
+
+    def post_request_not_a_passenger(self):
+        self.client.login(username='test_user2', password='12345678')
+        response = self.client.post(
+            reverse("trip:trip_quick_message", kwargs={'trip_id': self.test_trip_in_route.id, 'user_id': self.driver}),
+            {'message': "test"})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Mail.objects.filter(receiver=self.driver, message="test").exists())
+
+    def post_request_passenger_to_passenger(self):
+        self.client.login(username='test_user2', password='12345678')
+        mommy.make(Companionship, member=self.passenger, trip=self.test_trip_in_route)
+        mommy.make(Companionship, member=self.second_passenger, trip=self.test_trip_in_route)
+        response = self.client.post(reverse("trip:trip_quick_message", kwargs={'trip_id': self.test_trip_in_route.id,
+                                                                               'user_id': self.second_passenger}),
+                                    {"message": "test"})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Mail.objects.filter(receiver=self.passenger, message="test").exists())

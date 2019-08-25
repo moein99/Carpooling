@@ -43,7 +43,7 @@ class MailManager(View):
 @login_required
 @only_get_allowed
 def get_sent_mails(request):
-    mails = Mail.objects.filter(sender=request.user)
+    mails = Mail.objects.filter(sender=request.user).order_by('-sent_time')
     return render(request, "sent_messages.html", {
         "mails": mails
     })
