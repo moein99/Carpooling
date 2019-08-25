@@ -332,7 +332,7 @@ class TripDetailView(DetailView):
         if self.request.user == self.object.car_provider or \
                 Companionship.objects.filter(trip_id=self.object.id, member_id=self.request.user.id).exists():
             return jwt.encode({'username': self.request.user.username, 'trip': self.object.id},
-                              os.environ['CARPOOLING_JWT_KEY'])
+                              os.environ['CARPOOLING_JWT_KEY'], algorithm='HS256').decode("utf-8")
         return None
 
 
