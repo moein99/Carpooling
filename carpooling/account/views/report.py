@@ -1,4 +1,4 @@
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.generic.base import View
@@ -10,13 +10,13 @@ class ReportManager(View):
     @staticmethod
     def get(request, member_id):
         if member_id == request.user.id:
-            return HttpResponseForbidden("You can not report your self")
+            return HttpResponse("You can not report your self", status=403)
         return render(request, "report.html", {"form": ReportForm()})
 
     @classmethod
     def post(cls, request, member_id):
         if member_id == request.user.id:
-            return HttpResponseForbidden("You can not report your self")
+            return HttpResponse("You can not report your self", status=403)
         report = cls.create_report(request.user.id, member_id, request.POST)
         if report is not None:
             return redirect(reverse('account:user_profile', kwargs={'user_id': member_id}))

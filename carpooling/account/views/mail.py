@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -6,6 +7,7 @@ from django.views.generic.base import View
 
 from account.forms import MailForm
 from account.models import Member, Mail
+from root.decorators import only_get_allowed
 
 
 class MailManager(View):
@@ -34,3 +36,12 @@ class MailManager(View):
             mail.save()
             return mail
         return None
+
+
+@login_required
+@only_get_allowed
+def get_sent_mails(request):
+    mails = Mail.objects.filter(sender=request.user).order_by('-sent_time')
+    return render(request, "sent_messages.html", {
+        "mails": mails
+    })

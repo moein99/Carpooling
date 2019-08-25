@@ -12,6 +12,11 @@ from carpooling.settings import SPOTIFY_CLIENT_ID, SPOTIFY_USERNAME, SPOTIFY_CLI
 
 proxy = 'proxy.roo.cloud:3128'
 
+CAR_PROVIDER_QUICK_MESSAGES = ["I have arrived", "Where are you?", "I will be there in five.",
+                               "I will be running late.", "It is gonna take more than half hour to get to you."]
+PASSENGER_QUICK_MESSAGES = ["Where are you?", "When are you gonna be here?", "I will be there in five.",
+                            "Go on with out me.", "I will be running late."]
+
 
 class ItemType:
     TRACK = "track"
@@ -113,6 +118,9 @@ class SpotifyAgent:
         already_added_tracks_ids = [track[ItemType.TRACK]['id'] for track in
                                     playlist_tracks[ItemType.TRACKS][ItemType.ITEMS]]
         return [track_id for track_id in new_tracks_ids if track_id not in already_added_tracks_ids]
+
+    def delete_playlist(self, playlist_id):
+        self.spotify.user_playlist_unfollow(SPOTIFY_USERNAME, playlist_id)
 
 
 def extract_source(post_data):

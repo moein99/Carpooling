@@ -5,10 +5,13 @@ import numpy as np
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponse
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.generic import DetailView
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
@@ -17,10 +20,11 @@ from account.models import Member
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
-from root.response import HttpResponseConflict
-from trip.forms import AutomaticJoinTripForm
+from trip.forms import AutomaticJoinTripForm, QuickMailForm
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
+from trip.utils import CAR_PROVIDER_QUICK_MESSAGES, \
+    PASSENGER_QUICK_MESSAGES
 from trip.utils import extract_source, extract_destination
 from trip.utils import get_trip_score
 from .tasks import notify
@@ -45,7 +49,7 @@ class TripCreationManger(View):
             log.info("Notification scheduled for trip {} on {}".format(trip.id, trip.start_estimation))
             return redirect(reverse('trip:add_to_groups', kwargs={'trip_id': trip.id}))
         log.warning("Failed to create trip due to form validations.", extra={'user': user})
-        return HttpResponseBadRequest('Invalid Request')
+        return HttpResponse('Request Not Allowed', status=405)
 
     @classmethod
     def create_trip(cls, car_provider: Member, post_data):
@@ -71,15 +75,15 @@ class TripRequestManager(View):
 
         if request.user == trip.car_provider:
             if trip.status != trip.WAITING_STATUS:
-                return HttpResponseConflict('Trip status is not waiting')
+                return HttpResponse('Trip status is not waiting', status=409)
             return cls.show_trip_requests(request, trip)
 
         elif trip in Trip.get_accessible_trips_for(request.user):
             if trip.status != trip.WAITING_STATUS:
-                return HttpResponseConflict('Trip status is not waiting')
+                return HttpResponse('Trip status is not waiting', status=409)
             return cls.show_create_request_form(request)
         else:
-            return HttpResponseForbidden('You have not access to this trip')
+            return HttpResponse('You have not access to this trip', status=401)
 
     @staticmethod
     def show_trip_requests(request, trip, error=None):
@@ -98,14 +102,15 @@ class TripRequestManager(View):
     @check_request_type
     def post(self, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
+
         if request.user == trip.car_provider or trip.passengers.filter(id=request.user.id).exists():
-            return HttpResponseForbidden("You are already partaking this trip")
+            return HttpResponse('You are already partaking this trip', status=403)
 
         if trip not in Trip.get_accessible_trips_for(request.user):
-            return HttpResponseForbidden('You have not access to this trip')
+            return HttpResponse('You have not access to this trip', status=403)
 
         if trip.status != trip.WAITING_STATUS:
-            return HttpResponseConflict('Trip status is not waiting')
+            return HttpResponse('Trip status is not waiting', status=409)
 
         source = extract_source(request.POST)
         destination = extract_destination(request.POST)
@@ -119,7 +124,7 @@ class TripRequestManager(View):
                     log.info("Request {} accepted automatically.".format(trip_request.id))
                 except Trip.TripIsFullException():
                     log.info("Failed to automatically join trip #{} due to capacity limit.".format(trip.id))
-            return redirect(reverse('trip:trip', kwargs={'trip_id': trip_id}))
+            return redirect(reverse('trip:trip', kwargs={'pk': trip_id}))
         log.warning("Failed to create request to trip {} due to form validation errors.".format(trip.id),
                     extra={'user': request.user})
         return render(request, 'join_trip.html', {'form': form})
@@ -161,18 +166,18 @@ class TripRequestManager(View):
     def put(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user != trip.car_provider:
-            return HttpResponseForbidden("Only car provider can use this method.")
+            return HttpResponse('Only car provider can use this method.', status=403)
 
         if trip.status != trip.WAITING_STATUS:
-            return HttpResponseConflict('Trip status is not waiting')
+            return HttpResponse('Trip status is not waiting', status=409)
 
         try:
             trip_request_id = int(request.POST.get('request_id'))
         except (ValueError, TypeError):
-            return HttpResponseBadRequest()
+            return HttpResponse('Bad Request', status=400)
 
         # TODO: Handle action field in template
-        action = request.POST.get('action')
+        action = request.POST.get('action', 'accept')
         if action == 'accept':
             try:
                 cls.accept_trip_request(trip, trip_request_id)
@@ -187,7 +192,7 @@ class TripRequestManager(View):
             log.info("Request #{} declined successfully.".format(trip_request_id), extra={'user': request.user})
             return cls.show_trip_requests(request, trip)
         else:
-            return HttpResponseBadRequest('Unknown action')
+            return HttpResponse('Unknown action', status=400)
 
 
 class AutomaticJoinRequestManager(View):
@@ -206,68 +211,134 @@ class AutomaticJoinRequestManager(View):
             trip = form.join_a_trip_automatically()
             if trip is not None:
                 log.info('Joined automatically to trip #{}.'.format(trip.id), extra={'user': request.user})
-                return redirect(reverse('trip:trip', kwargs={'trip_id': trip.id}))
+                return redirect(reverse('trip:trip', kwargs={'pk': trip.id}))
             log.warning('No trip found to join automatically.', extra={'user': request.user})
             return render(request, 'trip_not_found.html')
 
-        return HttpResponseBadRequest()
+        return HttpResponse('Bad Request', status=400)
 
 
-@login_required
-@only_get_allowed
-def get_trip_page_view(request, trip_id):
-    trip = get_object_or_404(Trip, id=trip_id)
+class TripDetailView(DetailView):
+    model = Trip
+    template_name = 'trip_page.html'
 
-    if Trip.get_accessible_trips_for(request.user).filter(id=trip_id).exists():
-        return render(request, 'trip_page.html', {
-            'trip': trip,
-        })
-    else:
-        return HttpResponseForbidden('You have not access to this trip.')
+    def get_context_data(self, **kwargs):
+        context = super(TripDetailView, self).get_context_data(**kwargs)
+        context['is_user_in_trip'] = self.is_user_in_trip(self.request.user)
+        context['user_request_already_sent'] = self.is_join_request_already_sent()
+        if self.object.status == self.object.DONE_STATUS and context['is_user_in_trip']:
+            context['votes'] = self.get_votes()
+        return context
 
+    @check_request_type
+    def post(self, request, pk):
+        self.object = self.get_object()
+        return self.handle_vote_request()
 
-class TripVoteManager(View):
-    @staticmethod
-    def get(request, trip_id):
-        members = []
-        rate = []
-        trip = Trip.objects.get(id=trip_id)
-        members.extend(trip.passengers.all())
-        members.append(trip.car_provider)
-        members.remove(request.user)
-        for i in range(len(members)):
-            try:
-                vote = Vote.objects.get(sender=request.user, receiver=members[i])
-                rate.append(vote.rate)
-            except Vote.DoesNotExist:
-                rate.append(None)
-        members_rate = {}
-        for i in range(len(members)):
-            members_rate[members[i]] = rate[i]
-        return render(request, 'trip_vote_manage.html', {'members_rate': members_rate, 'trip_id': trip_id})
+    def handle_vote_request(self):
+        receiver = Member.objects.get(id=int(self.request.POST['receiver_id']))
+        rate = self.request.POST['rate']
+        if self.is_vote_request_valid(receiver, int(rate)):
+            is_vote_created = self.create_vote(receiver, int(rate))
+            if is_vote_created:
+                return HttpResponse("OK")
+        return HttpResponseForbidden("permission denied")
 
-    @staticmethod
-    def post(request, trip_id):
-        receiver = request.POST.get('receiver')
-        rate = request.POST.get('rate')
-        vote = Vote(sender=request.user, receiver=Member.objects.get(id=receiver), rate=rate, trip_id=trip_id)
-        vote.save()
-        members = []
-        rate = []
-        trip = Trip.objects.get(id=trip_id)
-        members.extend(trip.passengers.all())
-        members.append(trip.car_provider)
-        members.remove(request.user)
-        for i in range(len(members)):
-            try:
-                vote = Vote.objects.get(sender=request.user, receiver=members[i])
-                rate.append(vote.rate)
-            except Vote.DoesNotExist:
-                rate.append(None)
-        members_rate = {}
-        for i in range(len(members)):
-            members_rate[members[i]] = rate[i]
-        return render(request, "trip_vote_manage.html", {'members_rate': members_rate, 'trip_id': trip_id})
+    def is_vote_request_valid(self, receiver, rate):
+        return self.is_user_in_trip(self.request.user) and self.object.status == self.object.DONE_STATUS and \
+               receiver != self.request.user and 1 <= rate <= 5 and self.is_user_in_trip(receiver)
+
+    def put(self, request, pk):
+        self.object = self.get_object()
+        action = self.request.POST['action']
+        if action == "leave":
+            return self.handle_leave_request()
+
+        if action == "update_status":
+            return self.handle_updating_trip_request()
+
+        if action == "open_trip":
+            return self.handle_opening_trip_request()
+
+    def handle_leave_request(self):
+        if self.is_user_in_trip(self.request.user):
+            user_id = self.request.POST['user_id']
+            self.handle_member_leaving_trip(user_id)
+            return HttpResponse(str(reverse('root:home')))
+        return HttpResponseBadRequest('User is not in trip')
+
+    def handle_updating_trip_request(self):
+        if self.request.user == self.object.car_provider:
+            self.update_status()
+            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+        return HttpResponseForbidden('Permission denied')
+
+    def handle_opening_trip_request(self):
+        if self.request.user == self.object.car_provider and self.object.status == self.object.CLOSED_STATUS:
+            self.open_trip()
+            return HttpResponse(str(reverse('trip:trip', kwargs={'pk': self.object.id})))
+        return HttpResponseForbidden('Permission denied')
+
+    def is_user_in_trip(self, user):
+        return user in self.object.passengers.all() or user == self.object.car_provider
+
+    def is_join_request_already_sent(self):
+        return TripRequest.objects.filter(trip=self.object, status=TripRequest.PENDING_STATUS,
+                                          containing_set__applicant=self.request.user).exists()
+
+    def handle_member_leaving_trip(self, user_id):
+        Companionship.objects.filter(member_id=user_id, trip_id=self.object.id).delete()
+        if int(user_id) == self.object.car_provider.id:
+            self.handle_car_provider_leaving()
+
+    def handle_car_provider_leaving(self):
+        self.object.car_provider = None
+        self.object.status = self.object.CANCELED_STATUS
+        self.delete_playlist()
+        self.object.save()
+
+    def update_status(self):
+        if self.object.status == self.object.WAITING_STATUS:
+            self.object.status = self.object.CLOSED_STATUS
+        elif self.object.status == self.object.CLOSED_STATUS:
+            self.object.status = self.object.IN_ROUTE_STATUS
+        elif self.object.status == self.object.IN_ROUTE_STATUS:
+            self.object.status = self.object.DONE_STATUS
+            self.delete_playlist()
+        self.object.save()
+
+    def open_trip(self):
+        self.object.status = self.object.WAITING_STATUS
+        self.object.save()
+
+    def delete_playlist(self):
+        spotify_agent = SpotifyAgent()
+        spotify_agent.delete_playlist(self.object.playlist_id)
+        self.object.playlist_id = None
+
+    def get_votes(self):
+        votes = {}
+        vote_receivers = self.get_vote_receivers()
+        for receiver in vote_receivers:
+            votes[receiver] = None
+        already_submitted_votes = Vote.objects.filter(receiver__in=vote_receivers, sender=self.request.user,
+                                                      trip=self.object)
+        for vote in already_submitted_votes:
+            votes[vote.receiver] = int(vote.rate)
+        return votes
+
+    def get_vote_receivers(self):
+        receivers = []
+        receivers.extend(self.object.passengers.all())
+        receivers.append(self.object.car_provider)
+        receivers.remove(self.request.user)
+        return receivers
+
+    def create_vote(self, receiver, rate):
+        if not Vote.objects.filter(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object).exists():
+            Vote.objects.create(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object)
+            return True
+        return False
 
 
 class TripGroupsManager(View):
@@ -284,7 +355,7 @@ class TripGroupsManager(View):
             if request.POST.get(group.code) == 'on':
                 TripGroups.objects.create(group=group, trip=trip)
                 log.info('Trip #{} added to group #{}.'.format(trip.id, group.id))
-        return redirect(reverse("trip:trip", kwargs={'trip_id': trip_id}))
+        return redirect(reverse("trip:trip", kwargs={'pk': trip_id}))
 
     @staticmethod
     def get_nearby_groups(user, trip_id):
@@ -315,7 +386,7 @@ class SearchTripsManager(View):
     def get(cls, request):
         if cls.is_valid_search_parameter(request.GET):
             return cls.do_search(request) if request.GET else render(request, "search_trip.html")
-        return HttpResponseBadRequest()
+        return HttpResponse('Request Not Allowed', status=405)
 
     @classmethod
     def do_search(cls, request):
@@ -410,8 +481,50 @@ def get_chat_interface(request, trip_id):
         return HttpResponseForbidden('Only trip members can access chat.')
 
 
-@login_required
-@only_get_allowed
-def get_playlist_view(request, trip_id):
-    playlist_id = Trip.objects.get(id=trip_id).playlist_id
-    return render(request, 'music_player.html', {"playlist_id": playlist_id, 'trip_id': trip_id})
+class QuickMessageTripManager(View):
+    @method_decorator(login_required)
+    def get(self, request, trip_id, user_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
+            return HttpResponseBadRequest()
+        if self.is_car_provider_to_companion(request.user, trip, user_id):
+            return render(request, "trip_quick_message.html", {"messages": CAR_PROVIDER_QUICK_MESSAGES})
+        if self.is_companion_to_car_provider(request.user, trip, user_id):
+            return render(request, "trip_quick_message.html", {"messages": PASSENGER_QUICK_MESSAGES})
+        return HttpResponseForbidden()
+
+    @staticmethod
+    def is_car_provider_to_companion(user, trip, companion_id):
+        return trip.car_provider == user and Companionship.objects.filter(trip_id=trip.id,
+                                                                          member_id=companion_id).exists()
+
+    @staticmethod
+    def is_companion_to_car_provider(user, trip, companion_id):
+        return trip.car_provider == companion_id and Companionship.objects.filter(trip_id=trip.id,
+                                                                                  member_id=user.id).exists()
+
+    @method_decorator(login_required)
+    def post(self, request, trip_id, user_id):
+        trip = get_object_or_404(Trip, id=trip_id)
+        if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
+            return HttpResponseBadRequest()
+        if self.is_car_provider_to_companion(request.user, trip, user_id) or self.is_companion_to_car_provider(
+                request.user, trip, user_id):
+            if QuickMessageTripManager.create_mail(request.user, request.POST, user_id):
+                return redirect(reverse('trip:trip', kwargs={'pk': trip_id}))
+            return HttpResponseBadRequest()
+        return HttpResponseForbidden()
+
+    @staticmethod
+    def create_mail(sender, post_data, receiver_id):
+        mail_form = QuickMailForm(data=post_data)
+        print(post_data.get("message"))
+        if mail_form.is_valid():
+            mail_obj = mail_form.save(commit=False)
+            mail_obj.sender = sender
+            mail_obj.receiver = Member.objects.get(id=receiver_id)
+            mail_obj.sent_time = timezone.now()
+            mail_obj.is_mail_seen = False
+            mail_obj.save()
+            return True
+        return False

@@ -31,7 +31,7 @@ def add_to_playlist(request, trip_id, item_id, item_type):
     if request.method == "GET":
         playlist_id = Trip.objects.get(id=trip_id).playlist_id
         SpotifyAgent().add_item_to_playlist(playlist_id, item_id, item_type)
-        return redirect(reverse('trip:trip_music_player', kwargs={"trip_id": trip_id}))
+        return redirect(reverse('trip:trip', kwargs={"pk": trip_id}))
     else:
         return HttpResponseBadRequest("method not implemented")
 
