@@ -3,7 +3,8 @@ from django.urls import path
 
 from trip.views import AutomaticJoinRequestManager, SearchTripsManager, get_available_trips_view, \
     get_active_trips_view, TripCreationManger, TripGroupsManager, TripRequestManager, \
-    get_owned_trips_view, get_public_trips_view, get_categorized_trips_view, get_group_trips_view, TripDetailView
+    get_owned_trips_view, get_public_trips_view, get_categorized_trips_view, get_group_trips_view, TripDetailView, \
+    QuickMessageTripManager
 from .apis import spotify_search, add_to_playlist
 
 app_name = "trip"
@@ -25,4 +26,6 @@ urlpatterns = [
     path('spotify-search/<int:trip_id>/<query>', spotify_search, name='spotify_search'),
     path('<int:trip_id>/playlist/<str:item_id>/<str:item_type>', add_to_playlist,
          name='add_to_playlist'),
+    path('<int:trip_id>/quick-message/<int:user_id>/', QuickMessageTripManager.as_view(), name='trip_quick_message'),
+
 ]
