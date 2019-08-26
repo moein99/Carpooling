@@ -25,14 +25,14 @@
                 conn.send(JSON.stringify({
                     username: '{{ user.username }}',
                     trip: parseInt({{ trip.id }}, 10),
-                    message: msg.value
+                    message: msg.value,
                 }));
                 msg.value = "";
                 return false;
             };
 
             if (window["WebSocket"]) {
-                conn = new WebSocket("ws://127.0.0.1:8080/trip/chat/ws?id={{ trip.id }}");
+                conn = new WebSocket("ws://127.0.0.1:8080/trip/chat/ws?id={{ trip.id }}&token={{ jwt }}");
                 conn.onclose = function (evt) {
                     var item = document.createElement("div");
                     item.innerHTML = "<b>Connection closed.</b>";
@@ -74,12 +74,17 @@
                 </div>
                 {% if not is_user_in_trip %}
                     {% if user_request_already_sent %}
-                        <button class="ui right floated disabled button" style="display: inline-block">Request sent</button>
+                        <button class="ui right floated disabled button" style="display: inline-block">Request sent
+                        </button>
                     {% elif trip.status != trip.CANCELED_STATUS and trip.status != trip.IN_ROUTE_STATUS and trip.status != trip.DONE_STATUS %}
-                        <button class="ui right floated green button" onclick="request_to_join()" style="display: inline-block">Join trip</button>
+                        <button class="ui right floated green button" onclick="request_to_join()"
+                                style="display: inline-block">Join trip
+                        </button>
                     {% endif %}
                 {% elif trip.status != trip.DONE_STATUS and trip.status != trip.IN_ROUTE_STATUS %}
-                    <button class="ui left floated red button" onclick="update_page('leave')" style="display: inline-block">Leave trip</button>
+                    <button class="ui left floated red button" onclick="update_page('leave')"
+                            style="display: inline-block">Leave trip
+                    </button>
                 {% endif %}
                 <h4 class="ui horizontal divider header">
                     <i class="tag blue icon"></i>
@@ -95,34 +100,40 @@
 
                 <table class="ui definition table">
                     <tbody>
-                        <tr>
+                    <tr>
                         <td class="two wide column">Capacity</td>
                         <td>{{ trip.capacity }}</td>
-                        </tr>
-                        <tr>
-                            <td>Car provider</td>
-                            {% if trip.status != trip.CANCELED_STATUS %}
-                                <td><a href="{% url 'account:user_profile' trip.car_provider.id %}">{{ trip.car_provider.first_name }} {{ trip.car_provider.last_name }}</a></td>
-                            {% else %}
-                                <td>No one</td>
-                            {% endif %}
-                        </tr>
-                        <tr>
+                    </tr>
+                    <tr>
+                        <td>Car provider</td>
+                        {% if trip.status != trip.CANCELED_STATUS %}
+                            <td>
+                                <a href="{% url 'account:user_profile' trip.car_provider.id %}">{{ trip.car_provider.first_name }} {{ trip.car_provider.last_name }}</a>
+                                {% if trip.status == trip.IN_ROUTE_STATUS and user in trip.passengers.all %}
+                                    <a href="{% url "trip:trip_quick_message" trip.id trip.car_provider.id %}">send a quick
+                                        message</a>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td>No one</td>
+                        {% endif %}
+                    </tr>
+                    <tr>
                         <td>Start</td>
                         <td>{{ trip.start_estimation }}</td>
-                        </tr>
-                        <tr>
+                    </tr>
+                    <tr>
                         <td>End</td>
                         <td>{{ trip.end_estimation }}</td>
-                        </tr>
-                        <tr>
+                    </tr>
+                    <tr>
                         <td>Source</td>
                         <td>({{ trip.source.0 }}, {{ trip.source.1 }})</td>
-                        </tr>
-                        <tr>
+                    </tr>
+                    <tr>
                         <td>Destination</td>
                         <td>({{ trip.destination.0 }}, {{ trip.destination.1 }})</td>
-                        </tr>
+                    </tr>
                     </tbody>
                 </table>
 
@@ -135,14 +146,22 @@
                     <div class="eight wide column">
                         <table class="ui celled table">
                             <thead>
-                                <tr>
-                                    <th>Joined People</th>
-                                </tr>
+                            <tr>
+                                <th>Joined People</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                {% for member in trip.passengers.all %}
-                                    <tr><td data-label="Joined People"><a href="{% url 'account:user_profile' member.id %}">{{ member.first_name }} {{ member.last_name }}</a></td></tr>
-                                {% endfor %}
+                            {% for member in trip.passengers.all %}
+                                <tr>
+                                    <td data-label="Joined People"><a
+                                            href="{% url 'account:user_profile' member.id %}">{{ member.first_name }} {{ member.last_name }}</a>
+                                        {% if trip.status == trip.IN_ROUTE_STATUS and user == trip.car_provider %}
+                                            <a href="{% url "trip:trip_quick_message" trip.id member.id %}">send a quick
+                                                message</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -150,21 +169,25 @@
                     <div class="eight wide column">
                         <table class="ui celled table">
                             <thead>
-                                <tr>
-                                    <th>Groups</th>
-                                </tr>
+                            <tr>
+                                <th>Groups</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                {% for group in trip.groups.all %}
-                                    <tr><td data-label="Joined People"><a href="{% url 'group:group' group.id %}">{{ group.title }}</a></td></tr>
-                                {% endfor %}
+                            {% for group in trip.groups.all %}
+                                <tr>
+                                    <td data-label="Joined People"><a
+                                            href="{% url 'group:group' group.id %}">{{ group.title }}</a></td>
+                                </tr>
+                            {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
             {% if user == trip.car_provider and trip.status != trip.DONE_STATUS %}
-                <button class="ui right floated green button" onclick="update_page('update_status')" style="display: inline-block">
+                <button class="ui right floated green button" onclick="update_page('update_status')"
+                        style="display: inline-block">
                     {% if trip.status == trip.WAITING_STATUS %}
                         Close trip
                     {% elif trip.status == trip.CLOSED_STATUS %}
@@ -175,7 +198,9 @@
                 </button>
             {% endif %}
             {% if trip.status == trip.CLOSED_STATUS %}
-                <button class="ui left floated yellow button" onclick="update_page('open_trip')" style="display: inline-block">Open trip</button>
+                <button class="ui left floated yellow button" onclick="update_page('open_trip')"
+                        style="display: inline-block">Open trip
+                </button>
             {% endif %}
         </div>
 
@@ -190,7 +215,9 @@
                                     <i class="search icon"></i>
                                 </div>
                             </div>
-                            <iframe id="player" style="width: 100%; height: 23em; border-radius:1em; margin-top: 1em" src="https://open.spotify.com/embed/playlist/{{ trip.playlist_id }}" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                            <iframe id="player" style="width: 100%; height: 23em; border-radius:1em; margin-top: 1em"
+                                    src="https://open.spotify.com/embed/playlist/{{ trip.playlist_id }}" frameborder="0"
+                                    allowtransparency="true" allow="encrypted-media"></iframe>
                         </div>
                     {% elif is_user_in_trip and votes|length > 0 %}
                         <div class="ui segment">
@@ -200,7 +227,8 @@
                             {% for receiver, rate in votes.items %}
                                 <div class="ui segment">
                                     <a href="{% url 'account:user_profile' receiver.id %}">{{ receiver.first_name }} {{ receiver.last_name }}:</a>
-                                    <div class="ui star rating" data-rating="{{ rate }}" data-max-rating="5" id="rate_{{ receiver.id }}"></div>
+                                    <div class="ui star rating" data-rating="{{ rate }}" data-max-rating="5"
+                                         id="rate_{{ receiver.id }}"></div>
                                 </div>
 
                             {% endfor %}
@@ -224,7 +252,7 @@
         var url = "{% url 'trip:spotify_search' trip.id 'query' %}".replace('query', '{query}');
         $('#spotify_search_box').search({
             type          : 'standard',
-            minCharacters : 3,
+            minCharacters : 2,
             apiSettings   : {
                 url: url
             },
@@ -241,7 +269,7 @@
 
     <script>
         var csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
-        $.ajaxSetup({headers: { "X-CSRFToken": csrftoken }});
+        $.ajaxSetup({headers: {"X-CSRFToken": csrftoken}});
 
         function update_page(action) {
             var url = '{% url 'trip:trip' trip.id %}';
@@ -250,7 +278,7 @@
                 post_data.user_id = {{ user.id }};
             }
             $.ajaxSetup({
-                headers: { "X-CSRFToken": csrftoken }
+                headers: {"X-CSRFToken": csrftoken}
             });
             $.post(url, post_data, function (redirection_url, status) {
                 window.location.href = redirection_url;
@@ -275,7 +303,7 @@
             {% endif %}
         {% endfor %}
     </script>
-    
+
     <script>
         function request_to_join() {
             window.location.href = '{% url 'trip:trip_request' trip.id %}';
