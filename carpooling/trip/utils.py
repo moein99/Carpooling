@@ -8,7 +8,7 @@ from django.contrib.gis.geos import Point
 from django.utils import timezone
 from numpy.linalg import norm
 
-from carpooling.settings import SPOTIFY_CLIENT_ID, SPOTIFY_USERNAME, SPOTIFY_CLIENT_SECRET, \
+from carpooling.settings.base import SPOTIFY_CLIENT_ID, SPOTIFY_USERNAME, SPOTIFY_CLIENT_SECRET, \
     SPOTIFY_REFRESH_TOKEN
 
 proxy = 'proxy.roo.cloud:3128'

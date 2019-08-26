@@ -1,4 +1,4 @@
-from carpooling.settings import *
+from .base import *
 
 DATABASES = {
     'default': {
