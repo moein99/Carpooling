@@ -6,14 +6,10 @@ services:
       - env_vars.env
     build: .
     restart: always
-    command: >
-      bash -c "
-        sleep 1 &&
-        python3 /code/carpooling/manage.py migrate --settings carpooling.settings_docker &&
-        python3 /code/carpooling/manage.py runserver 0.0.0.0:8000 --settings carpooling.settings_docker
-        "
+    command:
+      - /code/runserver.sh
     ports:
-      - "8000:8000"
+      - "80:8000"
     depends_on:
       - db
   
