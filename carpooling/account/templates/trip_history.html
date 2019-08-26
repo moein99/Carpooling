@@ -32,6 +32,8 @@
                     joined_description.appendChild(document.createTextNode('{{ trip.trip_description }}'));
                     joined_list_item.appendChild(joined_description);
                 {% endif %}
+                var joined_status = document.createElement('p');
+                joined_status.appendChild(document.createTextNode('The Trip is {{ trip.get_status_display}}'));
                 var joined_source = document.createElement('p');
                 joined_source.appendChild(document.createTextNode('Source location is {{ trip.source.x }} , {{ trip.source.y }}'));
                 var joined_destination = document.createElement('p');
@@ -52,6 +54,7 @@
                 joined_link_to_trip.appendChild(document.createTextNode('Go to trip'));
                 joined_link_to_trip.setAttribute('href', '{% url 'trip:trip' trip.id %}');
                 joined_list_item.appendChild(joined_link_to_trip);
+                joined_list_item.appendChild(joined_status);
                 joined_list_item.appendChild(joined_is_private);
                 joined_list_item.appendChild(joined_source);
                 joined_list_item.appendChild(joined_destination);
@@ -70,6 +73,8 @@
                     made_description.appendChild(document.createTextNode('{{ trip.trip_description }}'));
                     made_list_item.appendChild(made_description);
                 {% endif %}
+                var made_status = document.createElement('p');
+                made_status.appendChild(document.createTextNode('The Trip is {{ trip.get_status_display}}'));
                 var made_source = document.createElement('p');
                 made_source.appendChild(document.createTextNode('Source location is {{ trip.source.x }} , {{ trip.source.y }}'));
                 var made_destination = document.createElement('p');
@@ -91,6 +96,7 @@
                 made_link_to_trip.setAttribute('href', '{% url 'trip:trip' trip.id %}');
                 made_list_item.appendChild(made_link_to_trip);
                 made_list_item.appendChild(made_is_private);
+                made_list_item.appendChild(made_status);
                 made_list_item.appendChild(made_source);
                 made_list_item.appendChild(made_destination);
                 made_list_item.appendChild(made_capacity);

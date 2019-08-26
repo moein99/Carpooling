@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.db.models import Max
 from django.http import HttpResponseNotAllowed, HttpResponseBadRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
@@ -12,7 +13,8 @@ class RequestHistoryManager(View):
 
     @method_decorator(login_required)
     def get(self, request):
-        trip_request_sets = TripRequestSet.objects.filter(applicant=request.user)
+        trip_request_sets = TripRequestSet.objects.filter(applicant=request.user).annotate(
+            last_request=Max("requests__creation_time")).order_by("-last_request")
         return render(request, "request_history.html", {
             "trip_request_sets": trip_request_sets,
         })
@@ -31,7 +33,8 @@ class RequestHistoryManager(View):
             if not RequestHistoryManager.cancel_request(request.POST.get("id")):
                 return HttpResponse("Bad Request", status=400)
 
-        trip_request_sets = TripRequestSet.objects.filter(applicant=request.user)
+        trip_request_sets = TripRequestSet.objects.filter(applicant=request.user).annotate(
+            last_request=Max("requests__creation_time")).order_by("-last_request")
         return render(request, "request_history.html", {
             "trip_request_sets": trip_request_sets,
         })
@@ -51,11 +54,10 @@ class RequestHistoryManager(View):
         return False
 
 
-
 @login_required
 @only_get_allowed
 def get_trip_history(request):
     return render(request, "trip_history.html", {
-        "partaking_trips": request.user.partaking_trips.all(),
-        "driving_trip": request.user.driving_trips.all()
+        "partaking_trips": request.user.partaking_trips.order_by("-start_estimation"),
+        "driving_trip": request.user.driving_trips.order_by("-start_estimation")
     })

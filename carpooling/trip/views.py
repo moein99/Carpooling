@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from django.utils import timezone
 
 import jwt
 import numpy as np
@@ -11,24 +10,22 @@ from django.http import HttpResponseBadRequest, HttpResponse
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.generic import DetailView
 from django.views.generic.base import View
 from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
 
-from account.forms import MailForm
 from account.models import Member
 from carpooling.settings import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
-from trip.forms import AutomaticJoinTripForm
-from trip.forms import TripForm, TripRequestForm, AutomaticJoinTripForm, QuickMailForm
-from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet
-from trip.utils import extract_source, extract_destination, get_trip_score, CAR_PROVIDER_QUICK_MESSAGES, \
-    PASSENGER_QUICK_MESSAGES
+from trip.forms import AutomaticJoinTripForm, QuickMailForm
 from trip.forms import TripForm, TripRequestForm
 from trip.models import Trip, TripGroups, Companionship, TripRequest, TripRequestSet, Vote
+from trip.utils import CAR_PROVIDER_QUICK_MESSAGES, \
+    PASSENGER_QUICK_MESSAGES
 from trip.utils import extract_source, extract_destination
 from trip.utils import get_trip_score
 from .tasks import notify
