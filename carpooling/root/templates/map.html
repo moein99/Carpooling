@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
-
+{% load static %}
+{% block extra_header %}
+    <link rel='stylesheet' href='{% static 'css/mapbox-gl.css' %}'/>
+    <script src="{% static 'js/mapbox-gl.js' %}"></script>
+{% endblock %}
 {% block items %}
     <br>
     <div id='map' style="width: 100em; height: 50em;"></div>
