@@ -1,7 +1,10 @@
+asn1crypto==0.24.0
 background==0.1.1
 certifi==2019.6.16
+cffi==1.12.3
 chardet==3.0.4
 coverage==4.5.4
+cryptography==2.7
 Django==2.2.2
 django-appconf==1.0.3
 django-background-tasks==1.2.0
@@ -20,6 +23,8 @@ model-mommy==1.6.0
 numpy==1.17.0
 Pillow==6.1.0
 psycopg2==2.8.3
+pycparser==2.19
+PyJWT==1.7.1
 pymongo==3.9.0
 python-dateutil==2.8.0
 pytz==2019.1
