@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'group.apps.GroupConfig',
     'trip.apps.TripConfig',
     'semanticuiforms',
+    'django_elasticsearch_dsl',
 ]
 
 # Handle session is not Json Serializable
@@ -158,3 +159,9 @@ USER_TZ = True
 
 DISTANCE_THRESHOLD = 100
 TIME_ZONE = 'Asia/Tehran'
+
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': 'localhost:9200'
+    },
+}

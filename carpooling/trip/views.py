@@ -409,8 +409,7 @@ class SearchTripsManager(View):
         if post_data:
             return 'source_lat' in post_data and 'source_lng' in post_data and 'destination_lat' in post_data and \
                    'destination_lng' in post_data
-        else:
-            return True
+        return True
 
     @staticmethod
     def filter_by_dates(start_date, end_date, trips_query_set):
