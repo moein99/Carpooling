@@ -29,7 +29,7 @@ from trip.utils import CAR_PROVIDER_QUICK_MESSAGES, \
     PASSENGER_QUICK_MESSAGES
 from trip.utils import extract_source, extract_destination
 from trip.utils import get_trip_score
-from .tasks import notify
+from .tasks import notify, spotify_delete_playlist
 from .utils import SpotifyAgent
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
@@ -316,8 +316,7 @@ class TripDetailView(DetailView):
         self.object.save()
 
     def delete_playlist(self):
-        spotify_agent = SpotifyAgent()
-        spotify_agent.delete_playlist(self.object.playlist_id)
+        spotify_delete_playlist.delay(self.object.playlist_id)
         self.object.playlist_id = None
 
     def get_votes(self):

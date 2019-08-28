@@ -51,6 +51,11 @@ INSTALLED_APPS = [
 SESSION_ENGINE = 'mongo_sessions.session'
 MONGO_SESSIONS_TTL = 8 * 60 * 60  # Equivalent to 8 hours
 SESSION_SAVE_EVERY_REQUEST = True
+CELERY_BROKER_URL = 'mongodb://localhost:27017'
+CELERY_RESULT_BACKEND = 'mongodb://localhost:27017'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

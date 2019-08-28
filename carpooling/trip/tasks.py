@@ -1,8 +1,18 @@
+from __future__ import absolute_import, unicode_literals
 from background_task import background
 from django.core.mail import send_mail
 
+from celery import shared_task
 from carpooling.settings.base import EMAIL_HOST_USER
 from trip.models import Trip
+
+from .utils import SpotifyAgent
+
+
+@shared_task
+def spotify_delete_playlist(playlist_id):
+    spotify_agent = SpotifyAgent()
+    spotify_agent.delete_playlist(playlist_id)
 
 
 @background
