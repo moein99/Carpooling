@@ -9,3 +9,6 @@ DATABASES = {
         'USER': 'carpooling',
     }
 }
+MONGO_HOST = 'mongo'
+
+LOGGING['handlers']['mongolog']['connection'] = 'mongodb://mongo:27017'

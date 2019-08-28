@@ -32,7 +32,7 @@ class Trip(models.Model):
     start_estimation = models.DateTimeField()
     end_estimation = models.DateTimeField()
     trip_description = models.CharField(max_length=200, null=True)
-    playlist_id = models.CharField(max_length=22)
+    playlist_id = models.CharField(max_length=22, null=True)
 
     @classmethod
     def get_accessible_trips_for(cls, user):

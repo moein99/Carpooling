@@ -12,6 +12,7 @@ services:
       - "80:8000"
     depends_on:
       - db
+      - mongo
   
   db:
     image: docker.repos.cafebazaar.ir/mdillon/postgis
@@ -22,6 +23,9 @@ services:
       - POSTGRES_USER=carpooling
     volumes:
       - "dbdata:/var/lib/postgresql/data"
+
+  mongo:
+    image: mongo:latest
 
 volumes:
   dbdata:
