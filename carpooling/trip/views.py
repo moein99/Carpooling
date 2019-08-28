@@ -19,7 +19,7 @@ from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
 
 from account.models import Member
-from carpooling.settings import DISTANCE_THRESHOLD
+from carpooling.settings.base import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
 from trip.forms import AutomaticJoinTripForm, QuickMailForm
