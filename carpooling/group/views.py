@@ -9,8 +9,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
-from numpy import source
-
+from search import queries as search_query, index as INDEX
 from account.models import Member
 from group.forms import GroupForm
 from group.models import Group, Membership
@@ -43,11 +42,33 @@ class CreateGroupManager(View):
             if 'source_lat' in request.POST:
                 instance.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
             instance.save()
+            CreateGroupManager.index_goup(instance, request)
             Membership.objects.create(member=request.user, group=instance, role='ow')
             return redirect(reverse('group:groups_list'))
         return render(request, "create_group.html", {
             "form": form,
         })
+
+    @staticmethod
+    def index_goup(instance, request):
+        if 'source_lat' in request.POST:
+            data_map = {
+                "pin": {
+                    "location": {
+                        'lat': 35,
+                        'lon': 51
+                    }
+                },
+            }
+            INDEX.index_group_map(data_map, instance.id)
+
+        data = {
+            "id": instance.id,
+            "code": instance.code,
+            "title": instance.title,
+            "description": instance.description
+        }
+        INDEX.index_group(data)
 
 
 class PublicGroupsManager(View):
@@ -139,40 +160,31 @@ class SearchGroupManager:
     @login_required
     def search_group_view(request, query):
         result = {'groups': []}
-        for group in Group.objects.all():
-            if query in group.title:
-                result['groups'].append(SearchGroupManager.get_group_json(group))
+        for group in search_query.group_search_with_out_map(query)['hits']['hits']:
+            instance = get_object_or_404(Group, id=group['_source']["id"])
+            if not instance.is_private or Membership.objects.filter(member=request.user, group=instance).exists():
+                result['groups'].append(SearchGroupManager.get_group_json(instance))
         return HttpResponse(json.dumps(result))
 
     @staticmethod
     def get_group_json(group):
-        return {'title': group.title, 'description': group.description,
+        return {'title': group.title, 'description': group.description, 'code': group.code,
                 'url': reverse('group:group', kwargs={'group_id': group.id})}
 
 
 @login_required
 def sort(request):
     if request.method == "GET":
-        lat = float(request.GET['source_lat'])
-        lon = float(request.GET['source_lon'])
-        user_owner_group = Membership.objects.filter(member=request.user, group__is_private=True).exclude(group__source=None)
-        group_list = [membership.group for membership in user_owner_group]
-        group_list.extend(Group.objects.filter(is_private=False).exclude(source=None))
-        group_list = sorted(group_list, key=lambda x: getDistance(lat, lon, x.source.x, x.source.y))
+        data = {
+            "lat": float(request.GET['source_lat']),
+            "lon": float(request.GET['source_lon'])
+        }
+        group_list = []
+        for group in search_query.group_search_with_map(data)['hits']['hits']:
+            print(group)
+            instance = get_object_or_404(Group, id=group['_source']["id"])
+            if not instance.is_private or Membership.objects.filter(member=request.user, group=instance).exists():
+                group_list.append(instance)
         return render(request, "sorted_group_list.html", {"group_list": group_list})
     else:
         HttpResponse("Method Not Allowed", status=405)
-
-
-def getDistance(lat1, lon1, lat2, lon2):
-    R = 6373.0
-    lat1 = radians(lat1)
-    lon1 = radians(lon1)
-    lat2 = radians(lat2)
-    lon2 = radians(lon2)
-    distance_lon = lon2 - lon1
-    distance_lat = lat2 - lat1
-    a = sin(distance_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(distance_lon / 2) ** 2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    distance = R * c
-    return distance

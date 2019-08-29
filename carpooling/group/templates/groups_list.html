@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{
 {% block body %}
     <div>
         <a href="{% url 'group:create_group' %}">Create Group</a>
@@ -42,7 +42,7 @@
     <br>
         <div id='map' style="width: 100%; height: 50em; display: block;"></div>
     <br>
-    <form method="GET" action={% url "group:SortedGroupViewer" %}>
+    <form method="GET" action={% url "group:nearby_groups" %}>
         {{ form.errors }}
         {% csrf_token %}
         {{ form.as_p }}
@@ -62,8 +62,8 @@
             },
             fields: {
                 results: 'groups',
-                title: 'title',
-                description: 'description',
+                code: 'code',
+                description: 'description','title',
                 url: 'url'
             }
         });

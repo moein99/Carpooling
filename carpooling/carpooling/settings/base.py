@@ -15,6 +15,7 @@ import django.contrib.staticfiles.finders
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 from django.urls import reverse_lazy
+from django.utils.crypto import get_random_string
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LOGIN_REDIRECT_URL = '/'
@@ -46,7 +47,6 @@ INSTALLED_APPS = [
     'group.apps.GroupConfig',
     'trip.apps.TripConfig',
     'semanticuiforms',
-    'django_elasticsearch_dsl',
 ]
 
 # Handle session is not Json Serializable
@@ -159,9 +159,3 @@ USER_TZ = True
 
 DISTANCE_THRESHOLD = 100
 TIME_ZONE = 'Asia/Tehran'
-
-ELASTICSEARCH_DSL = {
-    'default': {
-        'hosts': 'localhost:9200'
-    },
-}

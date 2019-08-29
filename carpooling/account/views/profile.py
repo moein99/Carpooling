@@ -1,7 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models.aggregates import Sum
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpResponseRedirect, HttpResponseNotFound, \
-    HttpResponse
+from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -12,7 +11,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic.base import View
-
+from search import index as INDEX
 from account.forms import *
 from account.models import Member
 from root.decorators import check_request_type
@@ -134,3 +133,12 @@ class UserProfileManager(View):
             user.profile_picture = request.FILES['profile_picture']
         user.phone_number = request.POST.get('phone_number')
         user.save()
+        UserProfileManager.update_in_elastic(request)
+
+    @staticmethod
+    def update_in_elastic(request):
+        INDEX.update_profile({
+            "id": request.user.id,
+            "first_name": request.POST.get('first_name'),
+            "last_name": request.POST.get('last_name')
+        })

@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
 import json
-
+from search import queries as search_query
 from account.models import Mail, Member
 from group.models import Group
 
@@ -29,12 +29,11 @@ class SearchPeopleManager:
     @login_required
     def search_people_view(request, query):
         result = {'people': []}
-        for member in Member.objects.all():
-            if query in member.username or query in member.first_name or query in member.last_name:
-                result['people'].append(SearchPeopleManager.get_member_json(member))
+        for member in search_query.profile_username_name_search(data=query)["hits"]["hits"]:
+            result['people'].append(SearchPeopleManager.get_member_json(member["_source"]))
         return HttpResponse(json.dumps(result))
 
     @staticmethod
     def get_member_json(member):
-        return {'first_name': member.first_name, 'last_name': member.last_name, 'user_name': member.username, 'url':
-                reverse('account:user_profile', kwargs={'user_id': member.id})}
+        return {'first_name': member["first_name"], 'last_name': member["last_name"], 'user_name': member["username"], 'url':
+            reverse('account:user_profile', kwargs={'user_id': member["id"]})}

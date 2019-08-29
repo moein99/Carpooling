@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-
+from django.shortcuts import get_object_or_404
+from search import index
 from account.models import Member, Report, Mail, Comment
 
 
@@ -13,6 +14,19 @@ class SignupForm(UserCreationForm):
         help_texts = {
             'username': None,
         }
+
+    def save(self, commit=True):
+        instance = super(SignupForm, self).save(commit=False)
+        if commit:
+            instance.save()
+        user = get_object_or_404(Member, email=self.cleaned_data["email"])
+        index.index_profile({
+            "id": user.id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name
+        })
+        return instance
 
 
 class MailForm(forms.ModelForm):
