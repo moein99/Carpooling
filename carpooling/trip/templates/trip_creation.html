@@ -1,16 +1,72 @@
-{% extends 'map.html' %}
+{% extends 'map.html' %} {% load semanticui %}
+
+{% block extra_header %}
+    {{ block.super }}
+    <style>
+        #id_trip_description {
+            width: 20em;
+        }
+        #id_capacity {
+            width: 5em;
+        }
+    </style>
+{% endblock %}
+
 {% block body %}
+    <div class="ui centered grid">
+        <div class="ui three wide column">
+            <div class="ui segment">
+                <form class="ui form" role="form" method="post">
+                    {% csrf_token %}
+                    {{ form.media }}
+                    {% render_form form _no_required='true' %}
+                    <input type="hidden" name="source_lat" id="id_source_lat" value="35.70">
+                    <input type="hidden" name="source_lng" id="id_source_lng" value="51.40">
+                    <input type="hidden" name="destination_lat" id="id_destination_lat" value="35.70">
+                    <input type="hidden" name="destination_lng" id="id_destination_lng" value="51.35">
+                    <button type="submit" class="ui green button">Create Trip</button>
+                </form>
+            </div>
+        </div>
+        <div class="ui four wide column">
+            <div class="ui segment">
+                <div class="ui content" style="font-size: 1.25em">Select source and destination : </div>
+                <br>
+                <div id="map" style="width: 100%; height: 30.3em; border: 2px solid darkgray; border-radius: 1em"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        var calendarOpts = {
+            type: 'datetime',
+            ampm: false,
+            formatter: {
+                date: function (date, settings) {
+                    var year = date.getFullYear();
+                    var month = date.getMonth() + 1;
+                    var day = date.getDate();
+                    var hour = date.getHours();
+                    var minutes = date.getMinutes();
+                    if (month < 10) {
+                        month = '0' + month;
+                    }
+                    if (day < 10) {
+                        day = '0' + day;
+                    }
+                    return year + '-' + month + '-' + day;
+                }
+        }};
+        $('.ui.datetime.calendar').calendar(calendarOpts);
+        function set_width(item, width) {
+            item.setAttribute('style', 'width: ' + width);
+        }
+        function set_height(item, height) {
+            item.setAttribute('style', 'height: ' + height);
+        }
+        date_field = document.getElementById("id_end_estimation").parentNode.parentNode.parentNode;
+        set_width(date_field, "20em");
+        date_field = document.getElementById("id_start_estimation").parentNode.parentNode.parentNode;
+        set_width(date_field, "20em");
 
-
-    <form method="POST">
-        {% csrf_token %}
-        {{ form.media }}
-        {{ form.as_p }}
-        <input type="submit" value="Create">
-        <input type="hidden" name="source_lat" id="id_source_lat" value="35.70">
-        <input type="hidden" name="source_lng" id="id_source_lng" value="51.40">
-        <input type="hidden" name="destination_lat" id="id_destination_lat" value="35.70">
-        <input type="hidden" name="destination_lng" id="id_destination_lng" value="51.30">
-    </form>
-
+    </script>
 {% endblock %}
