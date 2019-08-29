@@ -5,6 +5,7 @@
 {% load static %}
 
 {% block body %}
+    <div id="map" style="width: 100%; height: 50em"></div>
     <form method="POST">
         {% csrf_token %}
         {{ form.as_p }}
