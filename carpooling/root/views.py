@@ -1,13 +1,12 @@
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
-from django.utils.decorators import method_decorator
 from django.views.generic.base import View
-import json
 
 from account.models import Mail, Member
-from group.models import Group
 
 
 class HomeManager(View):
@@ -37,4 +36,4 @@ class SearchPeopleManager:
     @staticmethod
     def get_member_json(member):
         return {'first_name': member.first_name, 'last_name': member.last_name, 'user_name': member.username, 'url':
-                reverse('account:user_profile', kwargs={'user_id': member.id})}
+            reverse('account:user_profile', kwargs={'user_id': member.id})}

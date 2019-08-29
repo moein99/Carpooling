@@ -18,7 +18,7 @@ from expiringdict import ExpiringDict
 from geopy.distance import distance as point_distance
 
 from account.models import Member
-from carpooling.settings import DISTANCE_THRESHOLD
+from carpooling.settings.base import DISTANCE_THRESHOLD
 from group.models import Group, Membership
 from root.decorators import check_request_type, only_get_allowed
 from trip.forms import AutomaticJoinTripForm, QuickMailForm
@@ -33,6 +33,8 @@ from .utils import SpotifyAgent
 
 user_groups_cache = ExpiringDict(max_len=100, max_age_seconds=5 * 60)
 
+log = logging.getLogger(__name__)
+
 
 class TripCreationManger(View):
     @staticmethod
@@ -41,9 +43,13 @@ class TripCreationManger(View):
 
     @classmethod
     def post(cls, request):
-        trip = cls.create_trip(request.user, request.POST)
+        user = request.user
+        trip = cls.create_trip(user, request.POST)
         if trip is not None:
+            notify(trip.id, schedule=trip.start_estimation)
+            log.info("Notification scheduled for trip {} on {}".format(trip.id, trip.start_estimation))
             return redirect(reverse('trip:add_to_groups', kwargs={'trip_id': trip.id}))
+        log.warning("Failed to create trip due to form validations.", extra={'user': user})
         return HttpResponse('Request Not Allowed', status=405)
 
     @classmethod
@@ -57,16 +63,10 @@ class TripCreationManger(View):
             trip_obj.status = Trip.WAITING_STATUS
             trip_obj.source, trip_obj.destination = source, destination
             spotify_agent = SpotifyAgent()
-            trip_obj.playlist_id = spotify_agent.create_playlist(
-                trip_obj.trip_description)
+            trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
             trip_obj.save()
-            cls.set_notification(trip_obj)
             return trip_obj
         return None
-
-    @staticmethod
-    def set_notification(trip: Trip):
-        notify(trip.id, schedule=trip.start_estimation)
 
 
 class TripRequestManager(View):
@@ -76,12 +76,12 @@ class TripRequestManager(View):
 
         if request.user == trip.car_provider:
             if trip.status != trip.WAITING_STATUS:
-                return HttpResponse('Trip status is not waiting', status=400)
+                return HttpResponse('Trip status is not waiting', status=409)
             return cls.show_trip_requests(request, trip)
 
         elif trip in Trip.get_accessible_trips_for(request.user):
             if trip.status != trip.WAITING_STATUS:
-                return HttpResponse('Trip status is not waiting', status=400)
+                return HttpResponse('Trip status is not waiting', status=409)
             return cls.show_create_request_form(request)
         else:
             return HttpResponse('You have not access to this trip', status=401)
@@ -103,28 +103,50 @@ class TripRequestManager(View):
     @check_request_type
     def post(self, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
-        if request.user == trip.car_provider:
-            return HttpResponse('Not Allowed', status=403)
+
+        if request.user == trip.car_provider or trip.passengers.filter(id=request.user.id).exists():
+            return HttpResponse('You are already partaking this trip', status=403)
 
         if trip not in Trip.get_accessible_trips_for(request.user):
             return HttpResponse('You have not access to this trip', status=403)
 
         if trip.status != trip.WAITING_STATUS:
-            return HttpResponse('Trip status is not waiting', status=400)
+            return HttpResponse('Trip status is not waiting', status=409)
 
         source = extract_source(request.POST)
         destination = extract_destination(request.POST)
         form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
         if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
-            trip_request = TripRequestManager.create_trip_request(
-                form, source, destination)
+            trip_request = TripRequestManager.create_trip_request(form, source, destination)
             if trip.people_can_join_automatically:
                 try:
                     self.accept_trip_request(trip, trip_request.id)
+                    log.info("Request {} accepted automatically.".format(trip_request.id))
                 except Trip.TripIsFullException():
-                    pass
+                    log.info("Failed to automatically join trip #{} due to capacity limit.".format(trip.id))
             return redirect(reverse('trip:trip', kwargs={'pk': trip_id}))
+        log.warning("Failed to create request to trip {} due to form validation errors.".format(trip.id),
+                    extra={'user': request.user})
         return render(request, 'join_trip.html', {'form': form})
+
+    @staticmethod
+    @atomic
+    def accept_trip_request(trip, trip_request_id):
+        if trip.capacity <= trip.passengers.count():
+            raise Trip.TripIsFullException()
+        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        trip_request.status = TripRequest.ACCEPTED_STATUS
+        trip_request.save()
+        Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
+                                     source=trip_request.source, destination=trip_request.destination)
+        trip_request.containing_set.close()
+
+    @staticmethod
+    @atomic
+    def decline_request(trip, trip_request_id):
+        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        trip_request.status = TripRequest.DECLINED_STATUS
+        trip_request.save()
 
     @staticmethod
     def create_trip_request(form, source, destination):
@@ -144,10 +166,10 @@ class TripRequestManager(View):
     def put(cls, request, trip_id):
         trip = get_object_or_404(Trip, id=trip_id)
         if request.user != trip.car_provider:
-            return HttpResponse('Not Allowed', status=403)
+            return HttpResponse('Only car provider can use this method.', status=403)
 
         if trip.status != trip.WAITING_STATUS:
-            return HttpResponse('Trip status is not waiting', status=400)
+            return HttpResponse('Trip status is not waiting', status=409)
 
         try:
             trip_request_id = int(request.POST.get('request_id'))
@@ -159,35 +181,18 @@ class TripRequestManager(View):
         if action == 'accept':
             try:
                 cls.accept_trip_request(trip, trip_request_id)
+                log.info("Request #{} accepted successfully.".format(trip_request_id), extra={'user': request.user})
                 return cls.show_trip_requests(request, trip)
             except Trip.TripIsFullException:
+                log.warning("Failed to accept request #{} due to capacity limit.".format(trip_request_id),
+                            extra={'user': request.user})
                 return cls.show_trip_requests(request, trip, "Trip is full")
         elif action == 'decline':
             cls.decline_request(trip, trip_request_id)
+            log.info("Request #{} declined successfully.".format(trip_request_id), extra={'user': request.user})
             return cls.show_trip_requests(request, trip)
         else:
             return HttpResponse('Unknown action', status=400)
-
-    @staticmethod
-    @atomic
-    def accept_trip_request(trip, trip_request_id):
-        if trip.capacity <= trip.passengers.count():
-            raise Trip.TripIsFullException()
-        trip_request = get_object_or_404(
-            TripRequest, id=trip_request_id, trip=trip)
-        trip_request.status = TripRequest.ACCEPTED_STATUS
-        trip_request.save()
-        Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
-                                     source=trip_request.source, destination=trip_request.destination)
-        trip_request.containing_set.close()
-
-    @staticmethod
-    @atomic
-    def decline_request(trip, trip_request_id):
-        trip_request = get_object_or_404(
-            TripRequest, id=trip_request_id, trip=trip)
-        trip_request.status = TripRequest.DECLINED_STATUS
-        trip_request.save()
 
 
 class AutomaticJoinRequestManager(View):
@@ -205,7 +210,9 @@ class AutomaticJoinRequestManager(View):
         if form.is_valid():
             trip = form.join_a_trip_automatically()
             if trip is not None:
+                log.info('Joined automatically to trip #{}.'.format(trip.id), extra={'user': request.user})
                 return redirect(reverse('trip:trip', kwargs={'pk': trip.id}))
+            log.warning('No trip found to join automatically.', extra={'user': request.user})
             return render(request, 'trip_not_found.html')
 
         return HttpResponse('Bad Request', status=400)
@@ -347,20 +354,19 @@ class TripDetailView(DetailView):
 
 
 class TripGroupsManager(View):
-    @method_decorator(login_required)
-    def get(self, request, trip_id):
-        user_nearby_groups = TripGroupsManager.get_nearby_groups(
-            request.user, trip_id)
+    @classmethod
+    def get(cls, request, trip_id):
+        user_nearby_groups = cls.get_nearby_groups(request.user, trip_id)
         return render(request, "trip_add_to_groups.html", {'groups': user_nearby_groups})
 
-    @method_decorator(login_required)
-    def post(self, request, trip_id):
-        user_nearby_groups = TripGroupsManager.get_nearby_groups(
-            request.user, trip_id)
-        trip = get_object_or_404(Trip, id=trip_id)
+    @classmethod
+    def post(cls, request, trip_id):
+        user_nearby_groups = cls.get_nearby_groups(request.user, trip_id)
+        trip = Trip.objects.get(id=trip_id)
         for group in user_nearby_groups:
-            if request.POST.get(group.code, None) == 'on':
+            if request.POST.get(group.code) == 'on':
                 TripGroups.objects.create(group=group, trip=trip)
+                log.info('Trip #{} added to group #{}.'.format(trip.id, group.id))
         return redirect(reverse("trip:trip", kwargs={'pk': trip_id}))
 
     @staticmethod
@@ -379,10 +385,8 @@ class TripGroupsManager(View):
 
     @staticmethod
     def is_group_near_trip(group, trip):
-        if group.source is not None and not (TripGroupsManager.is_in_range(group.source, trip.source) or
-                                             TripGroupsManager.is_in_range(group.source, trip.destination)):
-            return False
-        return True
+        return group.source is None or (TripGroupsManager.is_in_range(group.source, trip.source) or
+                                        TripGroupsManager.is_in_range(group.source, trip.destination))
 
     @staticmethod
     def is_in_range(first_point, second_point, threshold=DISTANCE_THRESHOLD):
@@ -457,9 +461,8 @@ def get_categorized_trips_view(request):
 @only_get_allowed
 def get_group_trips_view(request, group_id):
     group = get_object_or_404(Group, id=group_id)
-    if group.is_private:
-        if not Membership.objects.filter(member=request.user, group=group).exists():
-            return HttpResponseForbidden()
+    if group.is_private and not Membership.objects.filter(member=request.user, group=group).exists():
+        return HttpResponseForbidden('You should be member of a private group to access its trips.')
     return render(request, 'trip_manager.html', {'trips': group.trip_set.all()})
 
 
@@ -475,10 +478,23 @@ def get_active_trips_view(request):
 @login_required
 @only_get_allowed
 def get_available_trips_view(request):
-    user = request.user
-    trips = (user.driving_trips.all() | user.partaking_trips.all() | Trip.objects.filter(
-        is_private=False).all()).distinct().exclude(status=Trip.DONE_STATUS)
+    trips = Trip.get_accessible_trips_for(request.user).exclude(Q(status=Trip.DONE_STATUS) | Q(
+        status=Trip.CANCELED_STATUS))
     return render(request, 'trip_manager.html', {'trips': trips})
+
+
+@login_required
+@only_get_allowed
+def get_chat_interface(request, trip_id):
+    user = request.user
+    trip = get_object_or_404(Trip, id=trip_id)
+    if trip.car_provider_id == user.id or Companionship.objects.filter(trip_id=trip_id, member_id=user.id).exists():
+        return render(request, 'trip_chat.html', {
+            'trip_id': trip_id,
+            'username': user.username
+        })
+    else:
+        return HttpResponseForbidden('Only trip members can access chat.')
 
 
 class QuickMessageTripManager(View):

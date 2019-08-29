@@ -8,18 +8,17 @@ from group.models import Group
 
 
 class Trip(models.Model):
+    CANCELED_STATUS = 'ca'
     WAITING_STATUS = 'wa'
     CLOSED_STATUS = 'cl'
     IN_ROUTE_STATUS = 'in'
     DONE_STATUS = 'dn'
-    CANCELED_STATUS = 'ca'
-
     STATUS_CHOICES = [
+        (CANCELED_STATUS, 'canceled'),
         (WAITING_STATUS, 'waiting'),
         (CLOSED_STATUS, 'closed'),
         (IN_ROUTE_STATUS, 'in route'),
-        (DONE_STATUS, 'done'),
-        (CANCELED_STATUS, 'canceled'),
+        (DONE_STATUS, 'done')
     ]
     source = gis_models.PointField()
     destination = gis_models.PointField()

@@ -1,7 +1,7 @@
 from background_task import background
 from django.core.mail import send_mail
 
-from carpooling.settings import EMAIL_HOST_USER
+from carpooling.settings.base import EMAIL_HOST_USER
 from trip.models import Trip
 
 

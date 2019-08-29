@@ -1,3 +1,4 @@
+import base64
 import os
 
 import numpy as np
@@ -7,7 +8,7 @@ from django.contrib.gis.geos import Point
 from django.utils import timezone
 from numpy.linalg import norm
 
-from carpooling.settings import SPOTIFY_CLIENT_ID, SPOTIFY_USERNAME, SPOTIFY_CLIENT_SECRET, \
+from carpooling.settings.base import SPOTIFY_CLIENT_ID, SPOTIFY_USERNAME, SPOTIFY_CLIENT_SECRET, \
     SPOTIFY_REFRESH_TOKEN
 
 proxy = 'proxy.roo.cloud:3128'
@@ -53,7 +54,7 @@ class SpotifyAgent:
         if 'access_token' in response:
             self.set_new_access_token(response)
         else:
-            raise ConnectionError("Couldn't refresh access token")
+            raise ConnectionError(response)
 
     def set_new_access_token(self, response):
         self.access_token = response['access_token']
@@ -63,9 +64,11 @@ class SpotifyAgent:
             self.refresh_token = response['refresh_token']
 
     def get_auth_data_and_headers(self):
-        data = {'grant_type': 'refresh_token', 'refresh_token': self.refresh_token,
-                'client_id': SPOTIFY_CLIENT_ID, 'client_secret': SPOTIFY_CLIENT_SECRET}
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        data = {'grant_type': 'refresh_token', 'refresh_token': self.refresh_token}
+        id_and_secret_bytes = (SPOTIFY_CLIENT_ID + ":" + SPOTIFY_CLIENT_SECRET).encode("utf-8")
+        authorization = str(base64.b64encode(id_and_secret_bytes), 'utf-8')
+        headers = {'Content-Type': 'application/x-www-form-urlencoded',
+                   "Authorization": "Basic " + authorization}
         return data, headers
 
     def create_playlist(self, playlist_name):

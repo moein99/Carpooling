@@ -11,12 +11,12 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
-import django.contrib.staticfiles.finders
 
+import django.contrib.staticfiles.finders
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 from django.urls import reverse_lazy
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LOGIN_REDIRECT_URL = '/'
 
 # Quick-start development settings - unsuitable for production
@@ -48,9 +48,9 @@ INSTALLED_APPS = [
     'semanticuiforms',
 ]
 
-# Handle session is not Json Serializable
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
-SESSION_ENGINE = 'redis_sessions.session'
+SESSION_ENGINE = 'mongo_sessions.session'
+MONGO_SESSIONS_TTL = 8 * 60 * 60  # Equivalent to 8 hours
+SESSION_SAVE_EVERY_REQUEST = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -58,13 +58,10 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'request_logging.middleware.LoggingMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'carpooling.middleware.AutoLogout'
 ]
-
-# Auto logout delay in minutes
-AUTO_LOGOUT_DELAY_IN_MINUTES = 8 * 60  # equivalent to 8 hours
 
 ROOT_URLCONF = 'carpooling.urls'
 
@@ -120,7 +117,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Tehran'
 
 USE_I18N = True
 
@@ -154,10 +151,117 @@ SPOTIFY_CLIENT_ID = os.environ['CLIENT_ID']
 SPOTIFY_CLIENT_SECRET = os.environ['CLIENT_SECRET']
 SPOTIFY_REFRESH_TOKEN = os.environ['REFRESH_TOKEN']
 SPOTIFY_USERNAME = os.environ['SPOTIFY_USERNAME']
-LOGIN_URL = '/account/login/'
-
 
 USER_TZ = True
 
 DISTANCE_THRESHOLD = 100
-TIME_ZONE = 'Asia/Tehran'
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {process:d} {thread:d} {name} {funcName} {lineno} {levelname} "{message}"',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+        'django.request': {
+            '()': 'django.utils.log.ServerFormatter',
+            'format': '[{server_time}] {name} @{user} {levelname} {message}',
+            'style': '{',
+        }
+    },
+
+
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'request_user_filter': {
+            '()': 'carpooling.filters.RequestUserFilter'
+        },
+    },
+
+
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose'
+        },
+
+        'django.request': {
+            'level': 'INFO',
+            'filters': ['request_user_filter', 'require_debug_false'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'django.request',
+        },
+
+        'logfile': {
+            'level': 'INFO',
+            'formatter': 'django.request',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'carpooling.log'),
+            'maxBytes': 50 * 2**20,  # 50MB
+            'backupCount': 3,
+        },
+
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'filters': ['require_debug_false'],
+            'include_html': True,
+        },
+
+        'mongolog': {
+            'level': 'INFO',
+            'class': 'mongolog.SimpleMongoLogHandler',
+
+            'connection': 'mongodb://localhost:27017',
+            'collection': 'carpooling_log'
+        },
+
+        'null': {
+            'class': 'logging.NullHandler',
+        },
+    },
+
+
+    'loggers': {
+        'django': {
+            'propagate': True,
+        },
+
+        'django.request': {
+            'handlers': ['django.request', 'logfile'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+
+        'django.server': {
+            'handlers': ['null'],
+            'propagate': False,
+        },
+
+        'django.utils.autoreload': {
+            'handlers': ['null'],
+            'propagate': False,
+        },
+
+        '': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'mail_admins', 'mongolog'],
+            'propagate': False,
+        }
+    }
+}
