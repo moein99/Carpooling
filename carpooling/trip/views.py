@@ -57,7 +57,8 @@ class TripCreationManger(View):
             trip_obj.status = Trip.WAITING_STATUS
             trip_obj.source, trip_obj.destination = source, destination
             spotify_agent = SpotifyAgent()
-            trip_obj.playlist_id = spotify_agent.create_playlist(trip_obj.trip_description)
+            trip_obj.playlist_id = spotify_agent.create_playlist(
+                trip_obj.trip_description)
             trip_obj.save()
             cls.set_notification(trip_obj)
             return trip_obj
@@ -115,7 +116,8 @@ class TripRequestManager(View):
         destination = extract_destination(request.POST)
         form = TripRequestForm(user=request.user, trip=trip, data=request.POST)
         if form.is_valid() and TripForm.is_point_valid(source) and TripForm.is_point_valid(destination):
-            trip_request = TripRequestManager.create_trip_request(form, source, destination)
+            trip_request = TripRequestManager.create_trip_request(
+                form, source, destination)
             if trip.people_can_join_automatically:
                 try:
                     self.accept_trip_request(trip, trip_request.id)
@@ -171,7 +173,8 @@ class TripRequestManager(View):
     def accept_trip_request(trip, trip_request_id):
         if trip.capacity <= trip.passengers.count():
             raise Trip.TripIsFullException()
-        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        trip_request = get_object_or_404(
+            TripRequest, id=trip_request_id, trip=trip)
         trip_request.status = TripRequest.ACCEPTED_STATUS
         trip_request.save()
         Companionship.objects.create(member=trip_request.containing_set.applicant, trip=trip,
@@ -181,7 +184,8 @@ class TripRequestManager(View):
     @staticmethod
     @atomic
     def decline_request(trip, trip_request_id):
-        trip_request = get_object_or_404(TripRequest, id=trip_request_id, trip=trip)
+        trip_request = get_object_or_404(
+            TripRequest, id=trip_request_id, trip=trip)
         trip_request.status = TripRequest.DECLINED_STATUS
         trip_request.save()
 
@@ -237,7 +241,8 @@ class TripDetailView(DetailView):
 
     def is_vote_request_valid(self, receiver, rate):
         return self.is_user_in_trip(self.request.user) and self.object.status == self.object.DONE_STATUS and \
-               receiver != self.request.user and 1 <= rate <= 5 and self.is_user_in_trip(receiver)
+            receiver != self.request.user and 1 <= rate <= 5 and self.is_user_in_trip(
+                receiver)
 
     def put(self, request, pk):
         self.object = self.get_object()
@@ -278,7 +283,8 @@ class TripDetailView(DetailView):
                                           containing_set__applicant=self.request.user).exists()
 
     def handle_member_leaving_trip(self, user_id):
-        Companionship.objects.filter(member_id=user_id, trip_id=self.object.id).delete()
+        Companionship.objects.filter(
+            member_id=user_id, trip_id=self.object.id).delete()
         if int(user_id) == self.object.car_provider.id:
             self.handle_car_provider_leaving()
 
@@ -327,7 +333,8 @@ class TripDetailView(DetailView):
 
     def create_vote(self, receiver, rate):
         if not Vote.objects.filter(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object).exists():
-            Vote.objects.create(sender=self.request.user, receiver=receiver, rate=rate, trip=self.object)
+            Vote.objects.create(sender=self.request.user,
+                                receiver=receiver, rate=rate, trip=self.object)
             return True
         return False
 
@@ -342,12 +349,14 @@ class TripDetailView(DetailView):
 class TripGroupsManager(View):
     @method_decorator(login_required)
     def get(self, request, trip_id):
-        user_nearby_groups = TripGroupsManager.get_nearby_groups(request.user, trip_id)
+        user_nearby_groups = TripGroupsManager.get_nearby_groups(
+            request.user, trip_id)
         return render(request, "trip_add_to_groups.html", {'groups': user_nearby_groups})
 
     @method_decorator(login_required)
     def post(self, request, trip_id):
-        user_nearby_groups = TripGroupsManager.get_nearby_groups(request.user, trip_id)
+        user_nearby_groups = TripGroupsManager.get_nearby_groups(
+            request.user, trip_id)
         trip = get_object_or_404(Trip, id=trip_id)
         for group in user_nearby_groups:
             if request.POST.get(group.code, None) == 'on':
@@ -392,13 +401,14 @@ class SearchTripsManager(View):
         data = request.GET
         source = extract_source(data)
         destination = extract_destination(data)
-        trips = (request.user.driving_trips.all() | request.user.partaking_trips.all()).distinct().exclude(
-            status=Trip.DONE_STATUS)
+        trips = Trip.get_accessible_trips_for(request.user)
         if data['start_time'] != "-1":
-            trips = cls.filter_by_dates(data['start_time'], data['end_time'], trips)
+            trips = cls.filter_by_dates(
+                data['start_time'], data['end_time'], trips)
         trips = sorted(trips, key=lambda trip: (
             get_trip_score(trip, source=source, destination=destination)))
-        trips = filter(lambda trip: get_trip_score(trip, source, destination) != np.inf, trips)
+        trips = filter(lambda trip: get_trip_score(
+            trip, source, destination) != np.inf, trips)
         return render(request, "trips_viewer.html", {"trips": trips})
 
     @staticmethod
@@ -425,7 +435,8 @@ def get_owned_trips_view(request):
 
 @only_get_allowed
 def get_public_trips_view(request):
-    trips = Trip.objects.filter(Q(is_private=False), ~Q(status=Trip.DONE_STATUS))
+    trips = Trip.objects.filter(
+        Q(is_private=False), ~Q(status=Trip.DONE_STATUS))
     return render(request, 'trip_manager.html', {'trips': trips})
 
 
@@ -435,7 +446,8 @@ def get_categorized_trips_view(request):
     user = request.user
     include_public_groups = request.GET.get('include-public-groups') == 'true'
     if include_public_groups:
-        groups = (user.group_set.all() | Group.objects.filter(is_private=False)).distinct()
+        groups = (user.group_set.all() | Group.objects.filter(
+            is_private=False)).distinct()
     else:
         groups = user.group_set.all()
     return render(request, 'trips_categorized_by_group.html', {'groups': groups})
@@ -455,7 +467,8 @@ def get_group_trips_view(request, group_id):
 @only_get_allowed
 def get_active_trips_view(request):
     user = request.user
-    trips = (user.driving_trips.all() | user.partaking_trips.all()).distinct().exclude(status=Trip.DONE_STATUS)
+    trips = (user.driving_trips.all() | user.partaking_trips.all()
+             ).distinct().exclude(status=Trip.DONE_STATUS)
     return render(request, 'trip_manager.html', {'trips': trips})
 
 
