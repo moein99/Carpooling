@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
-
+{% load static %}
+{% block extra_header %}
+        {# stylesheets  #}
+    <link rel='stylesheet' href='{% static 'css/mapbox-gl.css' %}'/>
+    <script src="{% static 'js/mapbox-gl.js' %}"></script>
+{% endblock %}
 {% block body %}
     <div>
         <a href="{% url 'group:create_group' %}">Create Group</a>

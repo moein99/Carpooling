@@ -3,18 +3,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta content="text/html" charset="UTF-8">
-
-    {# stylesheets  #}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
-    <link rel='stylesheet' href='{% static 'css/mapbox-gl.css' %}'/>
+
 
     {# scripts #}
     {# order matters jquery semantic #}
     <script src="{% static 'js/jquery_3.3.1.js' %}"></script>
     <script src="{% static 'js/semantic_2.4.2.js' %}"></script>
-    <script src="{% static 'js/mapbox-gl.js' %}"></script>
     <title>{% block title %}Car Pooling{% endblock %}</title>
+    <meta content="text/html" charset="UTF-8">
     {% block extra_header %}{% endblock %}
 
     <style>
