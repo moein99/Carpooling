@@ -1,13 +1,12 @@
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
-from django.utils.decorators import method_decorator
 from django.views.generic.base import View
-import json
-from search import queries as search_query
+
 from account.models import Mail, Member
-from group.models import Group
 
 
 class HomeManager(View):

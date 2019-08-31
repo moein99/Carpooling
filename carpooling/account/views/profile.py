@@ -52,30 +52,30 @@ class UserProfileManager(View):
         form = EditProfileForm(instance=request.user)
         return render(request, "edit_profile.html", {"form": form})
 
-    @staticmethod
-    def get_profile(request, member_id):
-        profile_elements = UserProfileManager.get_user_basic_data(get_object_or_404(Member, id=member_id))
+    @classmethod
+    def get_profile(cls, request, member_id):
+        profile_elements = cls.get_user_basic_data(Member.objects.get(id=member_id))
         if request.user.is_authenticated:
-            profile_elements = UserProfileManager.add_member_specific_data(profile_elements, request.user, member_id)
+            profile_elements = cls.add_member_specific_data(profile_elements, request.user, member_id)
         return render(request, 'profile.html', profile_elements)
 
-    @staticmethod
-    def get_user_basic_data(user):
-        votes = UserProfileManager.get_user_received_votes(user.id)
+    @classmethod
+    def get_user_basic_data(cls, user):
+        votes = cls.get_user_received_votes(user.id)
         rate = -1
         if len(votes) != 0:
             rate = votes.aggregate(Sum('rate'))['rate__sum'] // votes.count()
-        return {"status": UserProfileManager.ANONYMOUS_PROFILE_STATUS, "member": user, "rate": rate}
+        return {"status": cls.ANONYMOUS_PROFILE_STATUS, "member": user, "rate": rate}
 
-    @staticmethod
-    def add_member_specific_data(profile_elements, user, member_id):
-        profile_elements['user_comments'] = UserProfileManager.get_user_comments(member_id)
+    @classmethod
+    def add_member_specific_data(cls, profile_elements, user, member_id):
+        profile_elements['user_comments'] = cls.get_user_comments(member_id)
         profile_elements['comment_form'] = CommentForm()
         if user.id == member_id:
-            profile_elements['status'] = UserProfileManager.OWNED_PROFILE_STATUS
+            profile_elements['status'] = cls.OWNED_PROFILE_STATUS
         else:
-            profile_elements['reported'] = UserProfileManager.is_reported(user.id, member_id)
-            profile_elements['status'] = UserProfileManager.MEMBER_PROFILE_STATUS
+            profile_elements['reported'] = cls.is_reported(user.id, member_id)
+            profile_elements['status'] = cls.MEMBER_PROFILE_STATUS
         return profile_elements
 
     @staticmethod
@@ -116,11 +116,13 @@ class UserProfileManager(View):
             return True
         return False
 
+    @classmethod
     @method_decorator(login_required)
-    def put(self, request, user_id):
+    def put(cls, request, user_id):
         if user_id != request.user.id:
-            return HttpResponse("Not Allowed", status=403)
-        UserProfileManager.update_member_profile(request)
+            return HttpResponse("You can only edit your own profile.", status=403)
+
+        cls.update_member_profile(request)
         return redirect(reverse('account:user_profile', kwargs={'user_id': request.user.id}))
 
     @staticmethod

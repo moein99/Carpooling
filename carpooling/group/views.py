@@ -1,44 +1,45 @@
 import json
-from math import radians, sin, cos, sqrt, atan2
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
-from django.db.models import Q
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic.base import View
+from math import radians, sin, cos, sqrt, atan2
+
 from search import queries as search_query, index as INDEX
 from account.models import Member
 from group.forms import GroupForm
 from group.models import Group, Membership
 from group.utils import get_group_membership, add_to_group, join_group, manage_group_authorization
+from root.decorators import only_get_allowed, check_request_type
 
 
-class UserGroupsManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
-        user_owned_groups = request.user.group_set.filter(membership__role='ow').defer('description', 'source')
-        user_joined_groups = request.user.group_set.filter(membership__role='me').defer('description', 'source')
-        return render(request, "groups_list.html", {
-            'user_owned_groups': user_owned_groups,
-            'user_joined_groups': user_joined_groups,
-        })
+@login_required
+@only_get_allowed
+def get_user_groups_view(request):
+    user_owned_groups = request.user.group_set.filter(membership__role='ow').defer('description', 'source')
+    user_joined_groups = request.user.group_set.filter(membership__role='me').defer('description', 'source')
+    return render(request, "groups_list.html", {
+        'user_owned_groups': user_owned_groups,
+        'user_joined_groups': user_joined_groups,
+    })
 
 
 class CreateGroupManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
+    @staticmethod
+    def get(request):
         return render(request, "create_group.html", {
             "form": GroupForm(),
         })
 
-    @method_decorator(login_required)
-    def post(self, request):
+    @staticmethod
+    def post(request):
         form = GroupForm(data=request.POST)
         if form.is_valid():
-            instance = form.save(commit=False)
+            group = form.save(commit=False)
             if 'source_lat' in request.POST:
                 instance.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
             instance.save()
@@ -71,19 +72,19 @@ class CreateGroupManager(View):
         INDEX.index_group(data)
 
 
-class PublicGroupsManager(View):
-    @method_decorator(login_required)
-    def get(self, request):
-        public_groups = Group.objects.filter(is_private=False)
-        return render(request, "public_groups.html", {
-            'public_groups': public_groups
-        })
+@login_required
+@only_get_allowed
+def get_public_groups_view(request):
+    public_groups = Group.objects.filter(is_private=False)
+    return render(request, "public_groups.html", {
+        'public_groups': public_groups
+    })
 
 
 # TODO: Clean this! It's dirty
 class GroupManager(View):
-    @method_decorator(login_required)
-    def get(self, request, group_id):
+    @staticmethod
+    def get(request, group_id):
         group, membership = get_group_membership(request.user, group_id)
         if group.is_private and membership is None:
             return HttpResponse("You are not a member of this group", status=403)
@@ -94,8 +95,8 @@ class GroupManager(View):
             'has_joined': has_joined,
         })
 
-    @method_decorator(login_required)
-    def post(self, request, group_id):
+    @staticmethod
+    def post(request, group_id):
         errors = []
         group, membership = get_group_membership(request.user, group_id)
         if group.is_private and membership is None:
@@ -122,8 +123,8 @@ class GroupManager(View):
 
 # TODO: Clean this! It's dirty
 class GroupMembersManager(View):
-    @method_decorator(login_required)
-    def get(self, request, group_id):
+    @staticmethod
+    def get(request, group_id):
         group, membership = get_group_membership(request.user, group_id)
         if group.is_private and membership is None:
             return HttpResponse("you are not a member of this group", status=403)
@@ -137,14 +138,12 @@ class GroupMembersManager(View):
             'members': members,
         })
 
-    @method_decorator(login_required)
+    @check_request_type
     def post(self, request, group_id):
-        if request.POST.get('type') == 'DELETE':
-            return self.delete(request, group_id)
         return HttpResponse('Method Not Allowed', status=405)
 
-    @method_decorator(login_required)
-    def delete(self, request, group_id):
+    @staticmethod
+    def delete(request, group_id):
         group, membership = get_group_membership(request.user, group_id)
         member_id = request.POST.get('member_id', None)
         if group.is_private and membership is None:
@@ -156,9 +155,9 @@ class GroupMembersManager(View):
 
 
 class SearchGroupManager:
-    @staticmethod
-    @login_required
-    def search_group_view(request, query):
+    @classmethod
+    @method_decorator(login_required)
+    def search_group_view(cls, request, query):
         result = {'groups': []}
         for group in search_query.group_search_with_out_map(query)['hits']['hits']:
             instance = get_object_or_404(Group, id=group['_source']["id"])
