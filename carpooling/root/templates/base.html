@@ -9,7 +9,7 @@
     {# scripts #}
     {# order matters jquery semantic #}
     <script src="{% static 'js/jquery_3.3.1.js' %}"></script>
-    <script src="{% static 'js/semantic_2.4.2.js' %}"></script>
+    <script src="{% static 'js/semantic_2.1.4.js' %}"></script>
     <title>{% block title %}Car Pooling{% endblock %}</title>
     <meta content="text/html" charset="UTF-8">
     {% block extra_header %}{% endblock %}
@@ -32,13 +32,10 @@
         {% include 'top_bar.html' %}
     {% endblock %}
 
-    <div id="items-container">
-        {% block items %} {% endblock %}
-    </div>
-
     <div id="body-container">
         {% block body %}{% endblock %}
     </div>
+    {% block items %} {% endblock %}
 </div>
 
 </body>

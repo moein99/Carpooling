@@ -8,21 +8,6 @@ from trip.models import Trip, TripRequest, Companionship
 from trip.utils import get_trip_score
 
 
-def check_times_validity(form_data):
-    try:
-        start_time = parse(str(form_data['start_estimation']))
-    except KeyError:
-        raise forms.ValidationError('Start time is required')
-    try:
-        end_time = parse(str(form_data['end_estimation']))
-    except KeyError:
-        raise forms.ValidationError('End time is required')
-    if end_time < start_time:
-        raise forms.ValidationError(
-            "Start time should be before end time"
-        )
-
-
 class TripMapForm(forms.Form):
     __POINT_X_UPPER_BOUND = 90
     __POINT_X_LOWER_BOUND = 0
@@ -69,14 +54,19 @@ class TripMapForm(forms.Form):
 class TripForm(forms.ModelForm):
     class Meta:
         model = Trip
-        fields = ('is_private', 'people_can_join_automatically', 'capacity', 'start_estimation', 'end_estimation',
-                  'trip_description')
+        fields = ('trip_description', 'start_estimation', 'end_estimation',
+                  'capacity', 'is_private', 'people_can_join_automatically')
+        labels = {
+            "is_private": "I want my trip to be private",
+            "people_can_join_automatically": "People can join this trip without my confirmation",
+            'trip_description': "Description"
+        }
 
     def clean(self):
         cleaned_data = super(TripForm, self).clean()
-        check_times_validity(cleaned_data)
         self.check_capacity_validity(cleaned_data)
         self.check_description_validity(cleaned_data)
+        check_times_validity(cleaned_data)
         return cleaned_data
 
     @staticmethod
@@ -182,3 +172,18 @@ class QuickMailForm(forms.ModelForm):
     class Meta:
         fields = ('message',)
         model = Mail
+
+
+def check_times_validity(form_data):
+    try:
+        start_time = parse(str(form_data['start_estimation']))
+    except KeyError:
+        raise forms.ValidationError('Start time is required')
+    try:
+        end_time = parse(str(form_data['end_estimation']))
+    except KeyError:
+        raise forms.ValidationError('End time is required')
+    if end_time < start_time:
+        raise forms.ValidationError(
+            "Start time should be before end time"
+        )

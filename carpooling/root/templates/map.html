@@ -3,13 +3,9 @@
 {% block extra_header %}
     <link rel='stylesheet' href='{% static 'css/mapbox-gl.css' %}'/>
     <script src="{% static 'js/mapbox-gl.js' %}"></script>
-{% endblock %}
-{% block items %}
-    <br>
-    <div id='map' style="width: 100em; height: 50em;"></div>
-    <br>
     <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoibW9laW45OSIsImEiOiJjanlwdml1cmkxZjlvM25ub29ibWx6MXZ6In0.qeTaEdOQHEbgUXTapsbj0A';
+        $(document).ready(function(){
+            mapboxgl.accessToken = 'pk.eyJ1IjoibW9laW45OSIsImEiOiJjanlwdml1cmkxZjlvM25ub29ibWx6MXZ6In0.qeTaEdOQHEbgUXTapsbj0A';
             var map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/streets-v11',
@@ -24,7 +20,7 @@
 
             var destination_marker = new mapboxgl.Marker({
                 draggable: true
-                }).setLngLat([51.30, 35.70]).addTo(map).setPopup(new mapboxgl.Popup({ offset: 25 }) // add popups
+                }).setLngLat([51.35, 35.70]).addTo(map).setPopup(new mapboxgl.Popup({ offset: 25 }) // add popups
             .setHTML('<h3>Destination</h3>'));
 
             function onDragEnd() {
@@ -37,5 +33,6 @@
             }
             source_marker.on('dragend', onDragEnd);
             destination_marker.on('dragend', onDragEnd);
+        });
     </script>
 {% endblock %}
