@@ -30,9 +30,6 @@ services:
     volumes:
       - "log_data:/data/db"
 
-  mongo:
-    image: mongo:latest
-
 volumes:
   db_data:
   log_data:

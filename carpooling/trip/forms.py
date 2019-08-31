@@ -66,7 +66,7 @@ class TripForm(forms.ModelForm):
         cleaned_data = super(TripForm, self).clean()
         self.check_capacity_validity(cleaned_data)
         self.check_description_validity(cleaned_data)
-        self.check_times_validity(cleaned_data)
+        check_times_validity(cleaned_data)
         return cleaned_data
 
     @staticmethod
@@ -75,21 +75,6 @@ class TripForm(forms.ModelForm):
         if not 0 < capacity < 21:
             raise forms.ValidationError(
                 "Capacity should be in range 1 - 20"
-            )
-
-    @staticmethod
-    def check_times_validity(form_data):
-        try:
-            start_time = parse(str(form_data['start_estimation']))
-        except KeyError:
-            raise forms.ValidationError('Start time is required')
-        try:
-            end_time = parse(str(form_data['end_estimation']))
-        except KeyError:
-            raise forms.ValidationError('End time is required')
-        if end_time < start_time:
-            raise forms.ValidationError(
-                "Start time should be before end time"
             )
 
     @staticmethod
@@ -187,3 +172,18 @@ class QuickMailForm(forms.ModelForm):
     class Meta:
         fields = ('message',)
         model = Mail
+
+
+def check_times_validity(form_data):
+    try:
+        start_time = parse(str(form_data['start_estimation']))
+    except KeyError:
+        raise forms.ValidationError('Start time is required')
+    try:
+        end_time = parse(str(form_data['end_estimation']))
+    except KeyError:
+        raise forms.ValidationError('End time is required')
+    if end_time < start_time:
+        raise forms.ValidationError(
+            "Start time should be before end time"
+        )
