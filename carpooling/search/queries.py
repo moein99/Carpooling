@@ -42,4 +42,4 @@ def group_search_with_map(data):
             }
         }
     }
-    return es.search(index="groups_map", body={"query": query}, size=20)
+    return es.search(index="group_map", body={"query": query}, size=20)

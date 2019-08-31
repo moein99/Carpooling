@@ -7,6 +7,7 @@ mappings = {
                 "properties": {
                     "location": {
                         "type": "geo_point"
+
                     }
                 }
             },
@@ -14,8 +15,8 @@ mappings = {
     }
 }
 es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
-if not es.indices.exists(index="groups_map"):
-    es.indices.create(index='groups_map', body=mappings)
+if not es.indices.exists(index="group_map"):
+    es.indices.create(index='group_map', body=mappings)
 
 
 def index_profile(data):
@@ -33,8 +34,10 @@ def update_profile(data):
 
 
 def index_group_map(data, group_id):
-        es.index(index='groups_map', id=group_id, doc_type='groups_map', body=data, request_timeout=30)
-
+    try:
+        es.index(index='group_map', id=group_id, doc_type='_doc', body=data, request_timeout=30)
+    except:
+        return
 
 
 def index_group(data):

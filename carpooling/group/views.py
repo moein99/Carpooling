@@ -55,8 +55,8 @@ class CreateGroupManager(View):
             data_map = {
                 "pin": {
                     "location": {
-                        'lat': 35,
-                        'lon': 51
+                        'lat': request.POST['source_lat'],
+                        'lon': request.POST['source_lon']
                     }
                 },
             }
@@ -182,7 +182,7 @@ def sort(request):
         group_list = []
         for group in search_query.group_search_with_map(data)['hits']['hits']:
             print(group)
-            instance = get_object_or_404(Group, id=group['_source']["id"])
+            instance = get_object_or_404(Group, id=group['_id'])
             if not instance.is_private or Membership.objects.filter(member=request.user, group=instance).exists():
                 group_list.append(instance)
         return render(request, "sorted_group_list.html", {"group_list": group_list})
