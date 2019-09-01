@@ -7,12 +7,12 @@ services:
     build: .
     restart: always
     command:
-      - gunicorn /carpooling/carpooling.wsgi:application --bind 0.0.0.0:8000
+      - /code/runserver.prod.sh
     expose:
       - 8000
     volumes:
-      - static_volume:/home/compute/carpooling/carpooling/static/
-      - media_volume:/home/compute/carpooling/carpooling/media/
+      - static_volume:/code/carpooling/static/
+      - media_volume:/code/carpooling/media/
     depends_on:
       - db
       - mongo
@@ -34,12 +34,12 @@ services:
       - "log_data:/data/db"
 
   nginx: 
-    image: ./nginx
+    build: ./nginx
     ports:
       - 80:80
     volumes:
-      - static_volume:/home/compute/carpooling/carpooling/static/
-      - media_volume:/home/compute/carpooling/carpooling/media/
+      - static_volume:/code/carpooling/static/
+      - media_volume:/code/carpooling/media/
     depends_on:
       - web
     
