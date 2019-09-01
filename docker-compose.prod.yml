@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  web:
+    env_file:
+      - env_vars.env
+    build: .
+    restart: always
+    command:
+      - gunicorn /carpooling/carpooling.wsgi:application --bind 0.0.0.0:8000
+    expose:
+      - 8000
+    volumes:
+      - static_volume:/home/compute/carpooling/carpooling/static/
+      - media_volume:/home/compute/carpooling/carpooling/media/
+    depends_on:
+      - db
+      - mongo
+  
+  db:
+    image: docker.repos.cafebazaar.ir/mdillon/postgis
+    restart: always
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_NAME=postgres
+      - POSTGRES_USER=carpooling
+    volumes:
+      - "db_data:/var/lib/postgresql/data"
+
+  mongo:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - "log_data:/data/db"
+
+  nginx: 
+    image: ./nginx
+    ports:
+      - 80:80
+    volumes:
+      - static_volume:/home/compute/carpooling/carpooling/static/
+      - media_volume:/home/compute/carpooling/carpooling/media/
+    depends_on:
+      - web
+    
+
+volumes:
+  db_data:
+  log_data:
+  static_volume:
+  media_volume:
+
