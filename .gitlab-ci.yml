@@ -7,7 +7,9 @@ before_script:
   - apk add --no-cache py-pip
   - docker-compose build
   - docker-compose up -d
-
+  - pwd
+  
 tests:
   script:
+    - pwd
     - docker-compose exec ./manage test
