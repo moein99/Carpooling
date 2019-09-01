@@ -28,8 +28,8 @@ def index_profile(data):
 
 
 @background
-def update_profile(data):
-    Elastic_search.update(index='prof', id=data["id"], doc_type='people', body=data, request_timeout=30)
+def update_profile(data, user_id):
+    Elastic_search.update(index='prof', id=user_id, doc_type='people', body=data, request_timeout=30)
 
 
 @background

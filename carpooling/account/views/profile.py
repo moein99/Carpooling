@@ -139,8 +139,8 @@ class UserProfileManager(View):
 
     @staticmethod
     def update_in_elastic(request):
-        INDEX.update_profile({
+        INDEX.update_profile({"doc": {
             "id": request.user.id,
             "first_name": request.POST.get('first_name'),
             "last_name": request.POST.get('last_name')
-        }, schedule=1)
+        }}, request.user.id, schedule=1)
