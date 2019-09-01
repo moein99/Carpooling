@@ -1,8 +1,7 @@
 from background_task import background
+from django.conf import settings
+Elastic_search = getattr(settings, "ELASTIC_SEARCH", None)
 
-import carpooling.settings.production as settings
-
-Elastic_search = settings.Elastic_search
 
 mappings = {
     "mappings": {
