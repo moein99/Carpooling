@@ -1,5 +1,5 @@
 import json
-
+import logging
 from django.contrib.auth.decorators import login_required
 from django.contrib.gis.geos import Point
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse, HttpResponseBadRequest
@@ -15,6 +15,7 @@ from group.forms import GroupForm
 from group.models import Group, Membership
 from group.utils import get_group_membership, add_to_group, join_group, manage_group_authorization
 from root.decorators import only_get_allowed, check_request_type
+log = logging.getLogger(__name__)
 
 
 @login_required
@@ -41,17 +42,17 @@ class CreateGroupManager(View):
         if form.is_valid():
             group = form.save(commit=False)
             if 'source_lat' in request.POST:
-                instance.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
-            instance.save()
-            CreateGroupManager.index_goup(instance, request)
-            Membership.objects.create(member=request.user, group=instance, role='ow')
+                group.source = Point(float(request.POST['source_lat']), float(request.POST['source_lon']))
+            group.save()
+            CreateGroupManager.index_goup(group, request)
+            Membership.objects.create(member=request.user, group=group, role='ow')
             return redirect(reverse('group:groups_list'))
         return render(request, "create_group.html", {
             "form": form,
         })
 
     @staticmethod
-    def index_goup(instance, request):
+    def index_goup(group, request):
         if 'source_lat' in request.POST:
             data_map = {
                 "pin": {
@@ -61,15 +62,15 @@ class CreateGroupManager(View):
                     }
                 },
             }
-            INDEX.index_group_map(data_map, instance.id)
+            INDEX.index_group_map(data_map, group.id, schedule=1)
 
         data = {
-            "id": instance.id,
-            "code": instance.code,
-            "title": instance.title,
-            "description": instance.description
+            "id": group.id,
+            "code": group.code,
+            "title": group.title,
+            "description": group.description
         }
-        INDEX.index_group(data)
+        INDEX.index_group(data, schedule=1)
 
 
 @login_required
@@ -160,14 +161,15 @@ class SearchGroupManager:
     def search_group_view(cls, request, query):
         result = {'groups': []}
         for group in search_query.group_search_with_out_map(query)['hits']['hits']:
-            instance = get_object_or_404(Group, id=group['_source']["id"])
-            if not instance.is_private or Membership.objects.filter(member=request.user, group=instance).exists():
+
+            instance = get_object_or_404(Group, id=group["_source"]["id"])
+            if not instance.is_private or Membership.objects.filter(member=request.user, group_id=instance.id).exists():
                 result['groups'].append(SearchGroupManager.get_group_json(instance))
         return HttpResponse(json.dumps(result))
 
     @staticmethod
     def get_group_json(group):
-        return {'title': group.title, 'description': group.description, 'code': group.code,
+        return {'title': group.title, 'description': group.description + " " + group.code,
                 'url': reverse('group:group', kwargs={'group_id': group.id})}
 
 
@@ -180,7 +182,6 @@ def sort(request):
         }
         group_list = []
         for group in search_query.group_search_with_map(data)['hits']['hits']:
-            print(group)
             instance = get_object_or_404(Group, id=group['_id'])
             if not instance.is_private or Membership.objects.filter(member=request.user, group=instance).exists():
                 group_list.append(instance)

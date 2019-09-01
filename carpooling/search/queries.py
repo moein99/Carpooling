@@ -1,4 +1,4 @@
-from search.index import es
+from search.index import Elastic_search
 
 
 def profile_username_name_search(data):
@@ -9,8 +9,10 @@ def profile_username_name_search(data):
     ]
     }
     }
-
-    return es.search(index="prof", body={"query": query}, size=10)
+    try:
+        return Elastic_search.search(index="prof", body={"query": query}, size=10)
+    except:
+        return None
 
 
 def group_search_with_out_map(data):
@@ -21,8 +23,10 @@ def group_search_with_out_map(data):
     ]
     }
     }
-
-    return es.search(index="group", body={"query": query}, size=20)
+    try:
+        return Elastic_search.search(index="group", body={"query": query}, size=20)
+    except:
+        return None
 
 
 def group_search_with_map(data):
@@ -42,4 +46,7 @@ def group_search_with_map(data):
             }
         }
     }
-    return es.search(index="group_map", body={"query": query}, size=20)
+    try:
+        return Elastic_search.search(index="group_map", body={"query": query}, size=20)
+    except:
+        return None

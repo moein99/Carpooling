@@ -5,8 +5,8 @@ from django.http import HttpResponseNotAllowed, HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.views.generic.base import View
-
-from account.models import Mail, Member
+from search import queries as search_query
+from account.models import Mail
 
 
 class HomeManager(View):
@@ -34,5 +34,5 @@ class SearchPeopleManager:
 
     @staticmethod
     def get_member_json(member):
-        return {'first_name': member["first_name"], 'last_name': member["last_name"], 'user_name': member["username"], 'url':
+        return {'description': member["first_name"] + ' ' + member["last_name"], 'user_name': member["username"], 'url':
             reverse('account:user_profile', kwargs={'user_id': member["id"]})}

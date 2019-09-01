@@ -143,4 +143,4 @@ class UserProfileManager(View):
             "id": request.user.id,
             "first_name": request.POST.get('first_name'),
             "last_name": request.POST.get('last_name')
-        })
+        }, schedule=1)
