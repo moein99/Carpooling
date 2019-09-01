@@ -249,8 +249,8 @@ class TripDetailView(DetailView):
 
     def is_vote_request_valid(self, receiver, rate):
         return self.is_user_in_trip(self.request.user) and self.object.status == self.object.DONE_STATUS and \
-            receiver != self.request.user and 1 <= rate <= 5 and self.is_user_in_trip(
-                receiver)
+               receiver != self.request.user and 1 <= rate <= 5 and self.is_user_in_trip(
+            receiver)
 
     def put(self, request, pk):
         self.object = self.get_object()
@@ -483,25 +483,11 @@ def get_available_trips_view(request):
     return render(request, 'trip_manager.html', {'trips': trips})
 
 
-@login_required
-@only_get_allowed
-def get_chat_interface(request, trip_id):
-    user = request.user
-    trip = get_object_or_404(Trip, id=trip_id)
-    if trip.car_provider_id == user.id or Companionship.objects.filter(trip_id=trip_id, member_id=user.id).exists():
-        return render(request, 'trip_chat.html', {
-            'trip_id': trip_id,
-            'username': user.username
-        })
-    else:
-        return HttpResponseForbidden('Only trip members can access chat.')
-
-
 class QuickMessageTripManager(View):
     @method_decorator(login_required)
     def get(self, request, trip_id, user_id):
         trip = get_object_or_404(Trip, id=trip_id)
-        if request.user.id == user_id and trip.status != Trip.IN_ROUTE_STATUS:
+        if request.user.id == user_id or trip.status != Trip.IN_ROUTE_STATUS:
             return HttpResponseBadRequest()
         if self.is_car_provider_to_companion(request.user, trip, user_id):
             return render(request, "trip_quick_message.html", {"messages": CAR_PROVIDER_QUICK_MESSAGES})
@@ -515,9 +501,9 @@ class QuickMessageTripManager(View):
                                                                           member_id=companion_id).exists()
 
     @staticmethod
-    def is_companion_to_car_provider(user, trip, companion_id):
-        return trip.car_provider == companion_id and Companionship.objects.filter(trip_id=trip.id,
-                                                                                  member_id=user.id).exists()
+    def is_companion_to_car_provider(user, trip, provider_id):
+        return trip.car_provider.id == provider_id and Companionship.objects.filter(trip_id=trip.id,
+                                                                                    member_id=user.id).exists()
 
     @method_decorator(login_required)
     def post(self, request, trip_id, user_id):
