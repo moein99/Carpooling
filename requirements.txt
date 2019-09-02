@@ -30,6 +30,7 @@ expiringdict==1.1.4
 futures==3.1.1
 geographiclib==1.49
 geopy==1.20.0
+gunicorn==19.9.0
 idna==2.8
 importlib-metadata==0.19
 kombu==4.6.4

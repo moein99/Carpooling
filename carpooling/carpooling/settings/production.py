@@ -1,5 +1,7 @@
 from .base import *
 
+ALLOWED_HOSTS = ['185.166.105.106', 'localhost']
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
