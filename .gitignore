@@ -306,5 +306,4 @@ pip-selfcheck.json
 
 # End of https://www.gitignore.io/api/linux,python,django,virtualenv,pycharm+all
 
-
 env_vars.env
