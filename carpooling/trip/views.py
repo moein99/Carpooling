@@ -4,6 +4,7 @@ from datetime import datetime
 
 import jwt
 import numpy as np
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db.transaction import atomic
@@ -230,7 +231,8 @@ class TripDetailView(DetailView):
         context['user_request_already_sent'] = self.is_join_request_already_sent()
         if self.object.status == self.object.DONE_STATUS and context['is_user_in_trip']:
             context['votes'] = self.get_votes()
-        context['jwt'] = self.make_chat_jwt()
+        context['trip_chat_url'] = "ws://{}:8080/trip/chat/ws?id={}&token={}".format(settings.CHAT_HOST, self.object.id,
+                                                                                     self.make_chat_jwt())
         return context
 
     @check_request_type

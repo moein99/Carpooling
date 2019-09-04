@@ -26,11 +26,6 @@ LOGIN_REDIRECT_URL = '/'
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'jrmvrkk4khilp822a$om_%id^ft!59r@dmy#doo8e1)yehbwtq'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -50,10 +45,12 @@ INSTALLED_APPS = [
 ]
 
 SESSION_ENGINE = 'mongo_sessions.session'
+MONGO_HOST = 'mongo'
 MONGO_SESSIONS_TTL = 8 * 60 * 60  # Equivalent to 8 hours
 SESSION_SAVE_EVERY_REQUEST = True
-CELERY_BROKER_URL = 'mongodb://localhost:27017'
-CELERY_RESULT_BACKEND = 'mongodb://localhost:27017'
+
+CELERY_BROKER_URL = 'mongodb://mongo:27017'
+CELERY_RESULT_BACKEND = 'mongodb://mongo:27017'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
@@ -95,7 +92,10 @@ WSGI_APPLICATION = 'carpooling.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'carpooling_db'
+        'NAME': 'carpooling_db',
+        'PORT': 5432,
+        'HOST': 'db',
+        'USER': 'carpooling'
     }
 }
 
@@ -161,7 +161,6 @@ SPOTIFY_USERNAME = os.environ['SPOTIFY_USERNAME']
 USER_TZ = True
 
 DISTANCE_THRESHOLD = 100
-
 
 LOGGING = {
     'version': 1,
@@ -233,7 +232,7 @@ LOGGING = {
             'level': 'INFO',
             'class': 'mongolog.SimpleMongoLogHandler',
 
-            'connection': 'mongodb://localhost:27017',
+            'connection': 'mongodb://mongo:27017',
             'collection': 'carpooling_log'
         },
 
@@ -271,3 +270,5 @@ LOGGING = {
         }
     }
 }
+
+ELASTIC_SEARCH = Elasticsearch([{'host': 'elasticsearch', 'port': 9200}])
