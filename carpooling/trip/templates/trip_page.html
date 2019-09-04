@@ -32,7 +32,7 @@
             };
 
             if (window["WebSocket"]) {
-                conn = new WebSocket("ws://127.0.0.1:8080/trip/chat/ws?id={{ trip.id }}&token={{ jwt }}");
+                conn = new WebSocket("{{ trip_chat_url }}");
                 conn.onclose = function (evt) {
                     var item = document.createElement("div");
                     item.innerHTML = "<b>Connection closed.</b>";

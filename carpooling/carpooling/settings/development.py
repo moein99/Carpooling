@@ -1,7 +1,7 @@
 from .base import *
 
 DEBUG = True
-ELASTIC_SEARCH = Elasticsearch([{'host': 'localhost', 'port': 9200}])
 
-ALLOWED_HOSTS = ['localhost']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
+CHAT_HOST = '127.0.0.1'

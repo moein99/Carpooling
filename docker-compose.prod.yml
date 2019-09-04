@@ -8,8 +8,6 @@ services:
     restart: always
     command:
       - /code/runserver.prod.sh
-    expose:
-      - 8000
     volumes:
       - static_volume:/code/carpooling/static/
       - media_volume:/code/carpooling/media/
@@ -22,8 +20,8 @@ services:
     restart: always
     environment:
       - POSTGRES_HOST=db
-      - POSTGRES_NAME=postgres
       - POSTGRES_USER=carpooling
+      - POSTGRES_DB=carpooling_db
     volumes:
       - "db_data:/var/lib/postgresql/data"
 
@@ -58,8 +56,6 @@ services:
             hard: -1
     volumes:
       - esdata01:/usr/share/elasticsearch/data
-    ports:
-      - 9200:9200
 
 volumes:
   db_data:
